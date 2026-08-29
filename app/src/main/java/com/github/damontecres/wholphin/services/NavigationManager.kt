@@ -34,6 +34,39 @@ class NavigationManager
         }
 
         /**
+         * Preview the specified [Destination] without growing the drawer back stack
+         */
+        fun previewFromDrawer(destination: Destination) {
+            if (destination is Destination.Home) {
+                if (backStack.size == 1 && backStack[0] is Destination.Home) return
+                goToHome()
+                return
+            }
+            if (backStack.lastOrNull() == destination) return
+
+            goToHome()
+            backStack.add(destination)
+            log()
+        }
+
+        /**
+         * Open a library browser with its matching hub directly beneath it
+         */
+        fun openLibraryBrowse(
+            hub: Destination.LibraryHub,
+            browse: Destination.LibraryBrowse,
+        ) {
+            if (backStack.size == 2 && backStack.lastOrNull() == hub) {
+                backStack.add(browse)
+            } else {
+                goToHome()
+                backStack.add(hub)
+                backStack.add(browse)
+            }
+            log()
+        }
+
+        /**
          * Go to the previous page
          */
         fun goBack() {
