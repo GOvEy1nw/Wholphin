@@ -1,11 +1,11 @@
 ---
 id: wphn-005
 title: Extend the shared row engine for library hubs
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-29 19:30'
+updated_date: '2026-08-29 19:35'
 labels:
   - android
   - rows
@@ -115,6 +115,16 @@ Verification:
 
 Deviations: the initial plan noted RC6 might remain unavailable, but Docker access was recovered and the exact-version fixture was completed. No membership-filter fallback was added because the single scoped RC6 query passed. Pre-existing Gradle/KSP/deprecation warnings were recorded but not repaired; no broad suite was run per task instruction.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: user
+created: 2026-08-29 19:35
+---
+Human acceptance recorded from the user; approved for publication.
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 
