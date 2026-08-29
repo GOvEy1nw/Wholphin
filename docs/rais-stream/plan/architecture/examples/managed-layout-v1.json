@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "revision": "sha256:example-family-layout-v1",
+  "generatedAt": "2026-08-29T12:00:00Z",
+  "profile": {
+    "id": "family",
+    "name": "Family",
+    "updatedAt": "2026-08-29T11:55:00Z"
+  },
+  "home": {
+    "rows": [
+      {
+        "id": "home-continue",
+        "titleOverride": null,
+        "maxItems": 25,
+        "showViewMore": true,
+        "config": {
+          "type": "ContinueWatchingCombined"
+        }
+      },
+      {
+        "id": "home-family-collection",
+        "titleOverride": "Family Picks",
+        "maxItems": 20,
+        "showViewMore": true,
+        "config": {
+          "type": "ByParent",
+          "parentId": "11111111-1111-1111-1111-111111111111",
+          "recursive": false
+        }
+      }
+    ]
+  },
+  "hubs": {
+    "22222222-2222-2222-2222-222222222222": {
+      "libraryId": "22222222-2222-2222-2222-222222222222",
+      "rows": [
+        {
+          "id": "movies-genres",
+          "titleOverride": null,
+          "maxItems": null,
+          "showViewMore": false,
+          "config": {
+            "type": "Genres",
+            "parentId": "22222222-2222-2222-2222-222222222222"
+          }
+        },
+        {
+          "id": "movies-continue",
+          "titleOverride": null,
+          "maxItems": 25,
+          "showViewMore": true,
+          "config": {
+            "type": "ContinueWatching",
+            "parentId": "22222222-2222-2222-2222-222222222222"
+          }
+        },
+        {
+          "id": "movies-recent",
+          "titleOverride": "Recently Added",
+          "maxItems": 25,
+          "showViewMore": true,
+          "config": {
+            "type": "RecentlyAdded",
+            "parentId": "22222222-2222-2222-2222-222222222222"
+          }
+        },
+        {
+          "id": "movies-collections",
+          "titleOverride": "Collections",
+          "maxItems": 25,
+          "showViewMore": true,
+          "config": {
+            "type": "Collections",
+            "parentId": "22222222-2222-2222-2222-222222222222"
+          }
+        }
+      ]
+    }
+  }
+}

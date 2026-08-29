@@ -55,7 +55,6 @@ app/release/
 app/debug/
 .vscode
 .kotlin
-docs/
 
 # mpv
 app/src/main/obj/
