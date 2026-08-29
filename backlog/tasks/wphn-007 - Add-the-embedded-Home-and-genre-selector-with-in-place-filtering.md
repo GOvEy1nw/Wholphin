@@ -1,16 +1,16 @@
 ---
-id: APP-007
+id: wphn-007
 title: Add the embedded Home and genre selector with in-place filtering
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - library-hub
   - focus
   - rows
-dependencies: 
-  - APP-006
+dependencies:
+  - wphn-006
 priority: high
 ---
 
@@ -27,7 +27,7 @@ Implement the exact Home/genre state machine without making genre focus trigger 
 - `ui/components/GenreCardGrid.kt`
 - `data/model/BaseItem.kt` genre destination/filter builder
 - `ui/components/CollectionFolderView.kt`
-- `ui/library/LibraryHub*` from APP-006
+- `ui/library/LibraryHub*` from wphn-006
 - current focus-restorer/bring-into-view helpers
 
 ## Implementation

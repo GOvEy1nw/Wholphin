@@ -1,18 +1,18 @@
 ---
-id: APP-008
+id: wphn-008
 title: Route all video-like libraries through hubs and extract full browsing
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - navigation
   - library-hub
   - rows
-dependencies: 
-  - APP-004
-  - APP-006
-  - APP-007
+dependencies:
+  - wphn-004
+  - wphn-006
+  - wphn-007
 priority: high
 ---
 
@@ -44,7 +44,7 @@ Make the new navigation the only route for supported video libraries while prese
 4. Keep direct navigation to actual Movie, Series, Episode, Box Set, folder, playlist and other media details unchanged.
 5. Stop presenting `TabbedPage` for the Movie/TV library landing flow. The old files may become thin compatibility delegates or be removed only if no callers remain.
 6. Do not show Studios anywhere in the new TV hub.
-7. Collections are a hub row for Movie and TV. Ensure the APP-005 RC6 collection acceptance scenario is exercised from the real hub.
+7. Collections are a hub row for Movie and TV. Ensure the wphn-005 RC6 collection acceptance scenario is exercised from the real hub.
 8. Preserve specialised Music, Photos, Live TV, recordings, playlists, Box Sets, and unsupported collection views.
 9. Confirm library OK always opens browse even while the previewed hub is in Genre mode; the browser opens with its own normal saved filter state.
 10. Confirm Back from browse returns to the matching hub rather than Home.

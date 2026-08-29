@@ -1,16 +1,16 @@
 ---
-id: APP-004
+id: wphn-004
 title: Add 300 ms Home Search and library focus previews
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - navigation
   - focus
   - tests
-dependencies: 
-  - APP-003
+dependencies:
+  - wphn-003
 priority: high
 ---
 
@@ -49,6 +49,7 @@ Deliver the approved focus-preview interaction without opening Search input, ste
    ```
 
    Do not add a second Search screen.
+
 8. On Search OK, replace/activate the current Search destination and request the existing input focus. On Search focus alone, `SearchPage` must skip its current automatic focus request.
 9. Home focus restores the existing Home entry without calling `reloadHome()`. Home OK preserves explicit reload behaviour.
 10. Library OK calls `openLibraryBrowse()` using that item’s hub and browse destinations.

@@ -1,16 +1,16 @@
 ---
-id: APP-005
+id: wphn-005
 title: Extend the shared row engine for library hubs
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - rows
   - library-hub
   - tests
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: high
 ---
 
@@ -39,6 +39,7 @@ Allow Home and library hubs to share one row engine without custom per-hub queri
    - `ContinueWatchingCombined`
 
    Existing serialized rows omit/null it and retain global Home behaviour.
+
 2. Thread optional `parentId` through `LatestNextUpService.getResume()` and `getNextUp()` to the underlying Jellyfin requests. Update every caller once at the shared function boundary.
 3. Add serializable row types:
 

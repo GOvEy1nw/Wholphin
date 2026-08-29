@@ -1,15 +1,15 @@
 ---
-id: APP-014
+id: wphn-014
 title: Add the private Rais Stream product flavour and config boundary
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - private-flavour
   - foundation
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: high
 ---
 
@@ -27,7 +27,7 @@ Isolate family identity, endpoints, update feed, and feature policy from general
 - root `.gitignore`
 - `app/src/main/AndroidManifest.xml`
 - existing `default`, `appstore`, and `firetv` flavour setup
-- app-name, launcher, banner, update URL resources
+- wphn-name, launcher, banner, update URL resources
 
 ## Implementation
 
@@ -49,7 +49,7 @@ Isolate family identity, endpoints, update feed, and feature policy from general
    - preconfigured Seerr URL;
    - update feed URL;
    - family build marker;
-   - capability flags used by APP-015.
+   - capability flags used by wphn-015.
 7. Set the Rais application ID from the private file so it installs beside standard Wholphin.
 8. Add `app/src/rais/res/values/strings.xml` with `app_name = Rais Stream`.
 9. Establish `src/rais` launcher/banner resource override paths. Until the later branding task supplies final artwork, copy/use neutral valid placeholders so builds install without touching global Wholphin assets.

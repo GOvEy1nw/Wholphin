@@ -1,17 +1,17 @@
 ---
-id: APP-019
+id: wphn-019
 title: Add Seerr Quick Connect and persistent per-user sessions
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - onboarding
   - seerr
   - tests
   - private-flavour
-dependencies: 
-  - APP-018
+dependencies:
+  - wphn-018
 priority: high
 ---
 
@@ -46,8 +46,9 @@ Establish the same family member in Seerr after Jellyfin login without embedding
    ```
 
    Seerr documentation and frontend versions have used slightly different final route shapes; business logic must call the generated operation and a live integration test must verify the configured server.
+
 3. Add a dedicated Seerr OkHttp client/qualifier rather than adding user-specific cookies to the general Jellyfin client.
-4. Add a small persistent cookie/session store under app-private `noBackupFilesDir`, keyed by:
+4. Add a small persistent cookie/session store under wphn-private `noBackupFilesDir`, keyed by:
 
    ```text
    Jellyfin server ID
@@ -56,6 +57,7 @@ Establish the same family member in Seerr after Jellyfin login without embedding
    ```
 
    Store only the session data necessary for Seerr requests. Do not store a plaintext password.
+
 5. On Jellyfin user switch/login:
    - load that user’s Seerr session;
    - validate with Seerr `auth/me` or equivalent;
@@ -78,12 +80,13 @@ Establish the same family member in Seerr after Jellyfin login without embedding
 10. Cancelling/failing Seerr setup must not block Jellyfin content. Discover/request UI remains inactive and offers Reconnect in Settings.
 11. Standard Wholphin’s existing manual Seerr setup may remain, but shared repository changes must not break it.
 12. Add fake-API tests for:
-   - initiate/check/authenticate success;
-   - cancellation;
-   - timeout;
-   - invalid/expired stored session;
-   - user partitioning;
-   - credential fallback discards password.
+
+- initiate/check/authenticate success;
+- cancellation;
+- timeout;
+- invalid/expired stored session;
+- user partitioning;
+- credential fallback discards password.
 
 ## Acceptance criteria
 

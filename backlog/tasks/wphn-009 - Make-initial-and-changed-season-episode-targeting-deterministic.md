@@ -1,15 +1,15 @@
 ---
-id: APP-009
+id: wphn-009
 title: Make initial and changed season episode targeting deterministic
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - series
   - tests
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: high
 ---
 

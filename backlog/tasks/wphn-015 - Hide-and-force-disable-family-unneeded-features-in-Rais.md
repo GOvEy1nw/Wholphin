@@ -1,15 +1,15 @@
 ---
-id: APP-015
+id: wphn-015
 title: Hide and force-disable family-unneeded features in Rais
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - private-flavour
   - settings
-dependencies: 
-  - APP-014
+dependencies:
+  - wphn-014
 priority: high
 ---
 
@@ -44,7 +44,7 @@ Simplify Rais Stream and guarantee hidden persisted preferences cannot reactivat
    - Theme Music;
    - Screensaver destination/settings;
    - Show media management;
-   - server add/remove/edit controls except the Advanced escape hatch added in APP-018.
+   - server add/remove/edit controls except the Advanced escape hatch added in wphn-018.
 3. Force runtime disable:
    - `ThemeSongPlayer` returns/stops when capability disabled regardless stored volume.
    - app shell does not start/render/pulse screensaver state when disabled.

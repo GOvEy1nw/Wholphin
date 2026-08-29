@@ -1,16 +1,16 @@
 ---
-id: APP-002
+id: wphn-002
 title: Add explicit library hub and browse destinations
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - navigation
   - library-hub
   - tests
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: high
 ---
 
@@ -50,6 +50,7 @@ Create the minimum navigation vocabulary needed by later drawer and hub tasks wi
    ```
 
    Do not add names, icons, filter JSON, or row configuration to navigation keys unless the existing code proves they are required.
+
 2. Add one pure helper that decides whether a Jellyfin user view should use the new video hub. Initial supported collection types:
    - Movies
    - TV Shows
@@ -65,8 +66,9 @@ Create the minimum navigation vocabulary needed by later drawer and hub tasks wi
    ```
 
    For ordinary non-video items both values may remain the same existing destination.
+
 5. Update `NavDrawerService` to build the two destinations from the same library object. Do not fetch additional metadata.
-6. Add temporary destination dispatch that delegates both new destinations to the existing collection-folder screen so the branch compiles. `APP-006` and `APP-008` replace those temporary delegates.
+6. Add temporary destination dispatch that delegates both new destinations to the existing collection-folder screen so the branch compiles. `wphn-006` and `wphn-008` replace those temporary delegates.
 7. Add a table-driven JVM test for the video-like classifier and its fallbacks.
 
 ## Acceptance criteria

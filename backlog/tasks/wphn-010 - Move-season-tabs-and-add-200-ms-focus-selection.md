@@ -1,15 +1,15 @@
 ---
-id: APP-010
+id: wphn-010
 title: Move season tabs and add 200 ms focus selection
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - series
   - focus
-dependencies: 
-  - APP-009
+dependencies:
+  - wphn-009
 priority: high
 ---
 
@@ -19,7 +19,7 @@ Place the season selector between the spotlight/header and episode row, then sel
 
 ## Goal
 
-Make left/right season browsing behave like a TV-native preview selector while using APP-009’s deterministic targets and race protection.
+Make left/right season browsing behave like a TV-native preview selector while using wphn-009’s deterministic targets and race protection.
 
 ## Files to inspect
 
@@ -48,7 +48,7 @@ Make left/right season browsing behave like a TV-native preview selector while u
    - keep tab focus;
    - show loading/current episode state without requesting episode focus.
 5. Split focus selection from click activation. Existing `requestFocusAfterSeason` behaviour should occur only after OK/explicit entry, not after focus preview.
-6. When the new episode target arrives, update which episode card will receive focus on Down/OK using APP-009’s index.
+6. When the new episode target arrives, update which episode card will receive focus on Down/OK using wphn-009’s index.
 7. OK on a season:
    - trigger selection immediately if not already selected;
    - enter the target episode when ready.

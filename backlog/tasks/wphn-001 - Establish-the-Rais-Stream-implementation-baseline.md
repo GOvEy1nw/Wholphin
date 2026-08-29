@@ -1,9 +1,9 @@
 ---
-id: APP-001
+id: wphn-001
 title: Establish the Rais Stream implementation baseline
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - foundation
@@ -46,7 +46,7 @@ Prove that the exact baseline builds before feature work, fix the canonical bran
    - the one-task/one-commit rule;
    - deferred branding statement;
    - no secret/private values rule.
-7. Do not add a managed-layout model or speculative test yet; `APP-016` owns that runtime code.
+7. Do not add a managed-layout model or speculative test yet; `wphn-016` owns that runtime code.
 
 ## Acceptance criteria
 

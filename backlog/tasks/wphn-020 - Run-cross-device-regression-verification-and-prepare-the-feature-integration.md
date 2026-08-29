@@ -1,22 +1,22 @@
 ---
-id: APP-020
+id: wphn-020
 title: Run cross-device regression verification and prepare the feature integration
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - tests
   - focus
-dependencies: 
-  - APP-008
-  - APP-010
-  - APP-011
-  - APP-012
-  - APP-013
-  - APP-015
-  - APP-017
-  - APP-019
+dependencies:
+  - wphn-008
+  - wphn-010
+  - wphn-011
+  - wphn-012
+  - wphn-013
+  - wphn-015
+  - wphn-017
+  - wphn-019
 priority: high
 ---
 

@@ -1,16 +1,16 @@
 ---
-id: APP-016
+id: wphn-016
 title: Add managed layout API validation cache and refresh state
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - managed-layout
   - foundation
   - tests
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: high
 ---
 
@@ -70,17 +70,20 @@ Provide a reliable, isolated managed-layout source without changing Home/hub ren
    - compare `revision` to avoid resetting active UI unnecessarily.
 9. Track last successful remote refresh separately from envelope `generatedAt`.
 10. Add a 15-minute resume staleness constant and methods for:
-   - login/app launch forced refresh;
-   - resume refresh if stale;
-   - manual forced refresh.
+
+- login/app launch forced refresh;
+- resume refresh if stale;
+- manual forced refresh.
+
 11. Do not add WorkManager, polling, WebSockets, push, ETag support, or a database migration.
 12. Add tests:
-   - canonical fixture decode;
-   - unsupported version rejection;
-   - duplicate row rejection;
-   - invalid remote does not replace cache;
-   - cache emits before delayed remote;
-   - unchanged revision does not replace active object/state unnecessarily.
+
+- canonical fixture decode;
+- unsupported version rejection;
+- duplicate row rejection;
+- invalid remote does not replace cache;
+- cache emits before delayed remote;
+- unchanged revision does not replace active object/state unnecessarily.
 
 ## Acceptance criteria
 

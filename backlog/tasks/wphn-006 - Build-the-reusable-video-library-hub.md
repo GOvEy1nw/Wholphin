@@ -1,17 +1,17 @@
 ---
-id: APP-006
+id: wphn-006
 title: Build the reusable video library hub
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - library-hub
   - focus
   - rows
-dependencies: 
-  - APP-002
-  - APP-005
+dependencies:
+  - wphn-002
+  - wphn-005
 priority: high
 ---
 
@@ -52,7 +52,8 @@ Replace the conceptual Recommended tab with one proper library landing page whos
    ```
 
    TV fallback inserts `NextUp(parentId)` after Continue Watching.
-4. Keep Genres in the configuration list, then partition it from media rows for the fixed selector slot. `APP-007` supplies the selector; use a non-interactive placeholder or hidden slot until then.
+
+4. Keep Genres in the configuration list, then partition it from media rows for the fixed selector slot. `wphn-007` supplies the selector; use a non-interactive placeholder or hidden slot until then.
 5. Fetch rows concurrently using the same bounded-concurrency pattern as Home. Do not create a second request-handler hierarchy.
 6. Store:
 

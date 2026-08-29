@@ -1,15 +1,15 @@
 ---
-id: APP-003
+id: wphn-003
 title: Implement drawer preview and library browse back-stack semantics
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - navigation
   - tests
-dependencies: 
-  - APP-002
+dependencies:
+  - wphn-002
 priority: high
 ---
 
@@ -42,6 +42,7 @@ Make back-stack behaviour deterministic before any focus event starts triggering
    - Search/LibraryHub: keep the existing Home entry and replace any previous drawer preview with the new destination.
    - same destination already visible: no-op.
    - never append a preview on every focus change.
+
 3. Add one operation equivalent to:
 
    ```kotlin

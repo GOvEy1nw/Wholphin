@@ -1,17 +1,17 @@
 ---
-id: APP-011
+id: wphn-011
 title: Add the names-first two-column Cast and Crew section
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - people
   - focus
   - settings
   - tests
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: high
 ---
 
@@ -44,6 +44,7 @@ Apply the agreed presentation consistently anywhere Wholphin currently renders p
    ```
 
    Proto3’s false default matches the desired default. Add serializer/upgrade work only where the project’s current preference rules require it.
+
 2. Keep the existing `PersonRow`/`PersonCard` implementation as the image-enabled branch. Do not rewrite it.
 3. Add one text `PeopleSection` that partitions the current list while preserving server order:
    - Cast: `ACTOR`, `GUEST_STAR`, and equivalent performer kinds returned by the current SDK.

@@ -1,15 +1,15 @@
 ---
-id: APP-018
+id: wphn-018
 title: Streamline Rais Jellyfin onboarding around the preconfigured server
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - onboarding
   - private-flavour
-dependencies: 
-  - APP-014
+dependencies:
+  - wphn-014
 priority: high
 ---
 
@@ -49,7 +49,7 @@ A clean Rais Stream install should ask the family only who they are/how they wan
 7. Add an Advanced Settings escape hatch that opens the current server management UI. Keep add/edit/remove controls out of ordinary onboarding and ordinary Rais Settings.
 8. Provide a `Reset to preconfigured server` action in the Advanced path so a temporary override is reversible.
 9. A manually chosen override may remain stored for that installation; do not add LAN detection or automatic URL switching.
-10. After successful Jellyfin authentication, signal APP-019’s Seerr onboarding/session check. Jellyfin app content must remain usable if that secondary step is skipped or fails.
+10. After successful Jellyfin authentication, signal wphn-019’s Seerr onboarding/session check. Jellyfin app content must remain usable if that secondary step is skipped or fails.
 11. No username, password, access token, Quick Connect secret, or server identity beyond the configured public URL is placed in BuildConfig/private properties.
 
 ## Acceptance criteria

@@ -1,15 +1,15 @@
 ---
-id: APP-012
+id: wphn-012
 title: Add flexible automatic library icon classification
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - navigation
   - tests
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: medium
 ---
 

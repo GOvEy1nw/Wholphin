@@ -1,15 +1,15 @@
 ---
-id: APP-013
+id: wphn-013
 title: Rename Favourites to Watch List and fix its drawer position
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - navigation
   - settings
-dependencies: 
-  - APP-001
+dependencies:
+  - wphn-001
 priority: medium
 ---
 

@@ -1,18 +1,18 @@
 ---
-id: APP-017
+id: wphn-017
 title: Apply managed layouts to Home hubs and the read-only status page
-status: To Do
+status: Ready
 assignee: []
-created_date: '2026-08-29'
+created_date: "2026-08-29"
 labels:
   - android
   - managed-layout
   - library-hub
   - settings
-dependencies: 
-  - APP-006
-  - APP-007
-  - APP-016
+dependencies:
+  - wphn-006
+  - wphn-007
+  - wphn-016
 priority: high
 ---
 
@@ -44,8 +44,9 @@ Render cached-first plugin layouts without blanking content or duplicating the e
    ```
 
    Do not replace or delete unmanaged settings.
+
 2. On user switch/app launch:
-   - ask APP-016 service to emit cache immediately;
+   - ask wphn-016 service to emit cache immediately;
    - render managed cache if available;
    - refresh remote in parallel;
    - replace rows only when the valid revision changes.
@@ -58,7 +59,7 @@ Render cached-first plugin layouts without blanking content or duplicating the e
    - look up surface by library UUID;
    - extract at most one Genres config to the fixed selector;
    - use managed media rows in Home mode;
-   - keep embedded genre filtering from APP-007;
+   - keep embedded genre filtering from wphn-007;
    - if no managed hub exists, use built-in fallback hub.
 5. Defensively treat row 403/404/unresolvable parent as unavailable and continue rendering other rows.
 6. When a revision refresh changes rows, preserve compatible focus only by stable row ID/item ID where current Compose state makes that straightforward. Otherwise safely return to first media; do not build a general state migration layer.
