@@ -1,11 +1,11 @@
 ---
 id: wphn-004
 title: Add 300 ms Home Search and library focus previews
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-29 18:38'
+updated_date: '2026-08-29 18:41'
 labels:
   - android
   - navigation
@@ -125,6 +125,8 @@ Pre-existing warnings left unchanged:
 
 Deviations:
 - None from task scope. The repository currently exposes Default/Appstore/Firetv variants rather than a Rais variant, so the task-specified Default debug variant was compiled and assembled.
+
+Human acceptance: approved by the user on 2026-08-29 for publication; task moved from Human Review to Done.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
