@@ -56,6 +56,7 @@ sealed class Destination(
     @Serializable
     data class Search(
         val query: String = "",
+        val activateInput: Boolean = true,
     ) : Destination()
 
     data object UserAppPreferences : Destination(true)

@@ -54,6 +54,7 @@ import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.Cards
+import com.github.damontecres.wholphin.ui.LocalContentTakeFocus
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
 import com.github.damontecres.wholphin.ui.cards.GenreCard
@@ -314,7 +315,7 @@ fun HomePageContent(
     val currentOnFocusPosition by rememberUpdatedState(onFocusPosition)
     val currentOnClickPlay by rememberUpdatedState(onClickPlay)
 
-    if (takeFocus) {
+    if (takeFocus && LocalContentTakeFocus.current) {
         LaunchedEffect(homeRows) {
             if (!firstFocused && homeRows.isNotEmpty()) {
                 if (position.row >= 0) {

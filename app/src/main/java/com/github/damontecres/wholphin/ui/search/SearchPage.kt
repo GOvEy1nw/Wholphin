@@ -91,6 +91,7 @@ internal const val RESULTS_START = SEERR_ROW + 1
 @Composable
 fun SearchPage(
     initialQuery: String,
+    activateInput: Boolean = true,
     userPreferences: UserPreferences,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
@@ -154,8 +155,10 @@ fun SearchPage(
             }
         }
     }
-    LaunchedEffect(Unit) {
-        focusRequesters.getOrNull(position.row)?.tryRequestFocus()
+    LaunchedEffect(activateInput) {
+        if (activateInput) {
+            focusRequesters.getOrNull(position.row)?.tryRequestFocus()
+        }
     }
     val onClickItem = { _: Int, item: BaseItem ->
         Timber.v("Clicked %s, type=%s", item.id, item.type)

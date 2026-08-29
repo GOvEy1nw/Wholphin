@@ -390,6 +390,7 @@ fun DestinationContent(
             LaunchedEffect(Unit) { onClearBackdrop.invoke() }
             SearchPage(
                 initialQuery = destination.query,
+                activateInput = destination.activateInput,
                 userPreferences = preferences,
                 modifier = modifier,
             )

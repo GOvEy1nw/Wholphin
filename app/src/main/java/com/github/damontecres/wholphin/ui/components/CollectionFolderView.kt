@@ -57,6 +57,7 @@ import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.music.addToQueue
 import com.github.damontecres.wholphin.ui.equalsNotNull
+import com.github.damontecres.wholphin.ui.LocalContentTakeFocus
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -789,6 +790,7 @@ fun CollectionFolderViewContent(
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
 ) {
+    val takeContentFocus = LocalContentTakeFocus.current
     var position by rememberInt(savedPosition)
 
     val contextMenu = rememberContextMenu(preferences, provider)
@@ -915,8 +917,10 @@ fun CollectionFolderViewContent(
 
                     when (val pager = state.items) {
                         is DataLoadingState.Error -> {
-                            LaunchedEffect(Unit) {
-                                (focusRequesterOnEmpty ?: headerRowFocusRequester).tryRequestFocus()
+                            if (takeContentFocus) {
+                                LaunchedEffect(Unit) {
+                                    (focusRequesterOnEmpty ?: headerRowFocusRequester).tryRequestFocus()
+                                }
                             }
                             ErrorMessage(pager, Modifier.fillMaxSize())
                         }
@@ -928,15 +932,17 @@ fun CollectionFolderViewContent(
                         }
 
                         is DataLoadingState.Success<List<BaseItem?>> -> {
-                            LaunchedEffect(Unit) {
-                                val focusRequester =
-                                    when {
-                                        contextMenu.isShowing -> null
-                                        filterDropdownShowing -> filterButtonFocusRequester
-                                        pager.data.isNotEmpty() -> gridFocusRequester
-                                        else -> focusRequesterOnEmpty ?: headerRowFocusRequester
-                                    }
-                                focusRequester?.tryRequestFocus()
+                            if (takeContentFocus) {
+                                LaunchedEffect(Unit) {
+                                    val focusRequester =
+                                        when {
+                                            contextMenu.isShowing -> null
+                                            filterDropdownShowing -> filterButtonFocusRequester
+                                            pager.data.isNotEmpty() -> gridFocusRequester
+                                            else -> focusRequesterOnEmpty ?: headerRowFocusRequester
+                                        }
+                                    focusRequester?.tryRequestFocus()
+                                }
                             }
                             Box(Modifier.fillMaxSize()) {
                                 if (state.viewOptions.type == ViewOptionsType.GRID) {

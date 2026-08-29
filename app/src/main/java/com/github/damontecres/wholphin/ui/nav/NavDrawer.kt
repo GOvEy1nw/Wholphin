@@ -31,16 +31,21 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -79,6 +84,7 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.LocalContentTakeFocus
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -89,6 +95,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -98,6 +105,8 @@ import org.jellyfin.sdk.model.api.CollectionType
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
+
+private const val DRAWER_PREVIEW_DELAY_MS = 300L
 
 @HiltViewModel
 class NavDrawerViewModel
@@ -140,7 +149,13 @@ class NavDrawerViewModel
 
                 is ServerNavDrawerItem -> {
                     setIndex(index)
-                    navigationManager.navigateToFromDrawer(item.clickDestination)
+                    val hub = item.previewDestination as? Destination.LibraryHub
+                    val browse = item.clickDestination as? Destination.LibraryBrowse
+                    if (hub != null && browse != null) {
+                        navigationManager.openLibraryBrowse(hub, browse)
+                    } else {
+                        navigationManager.navigateToFromDrawer(item.clickDestination)
+                    }
                 }
             }
         }
@@ -151,6 +166,10 @@ class NavDrawerViewModel
 
         fun setShowMore(value: Boolean) {
             _state.update { it.copy(moreExpanded = value) }
+        }
+
+        fun setContentTakeFocus(value: Boolean) {
+            _state.update { it.copy(contentTakeFocus = value) }
         }
 
         fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
@@ -211,6 +230,7 @@ class NavDrawerViewModel
 data class NavDrawerState(
     val selectedIndex: Int = -1,
     val moreExpanded: Boolean = false,
+    val contentTakeFocus: Boolean = true,
 )
 
 /**
@@ -288,6 +308,25 @@ fun NavDrawer(
         ),
 ) {
     LaunchedEffect(Unit) { viewModel.updateSelectedIndex() }
+    var previewDestination by remember { mutableStateOf<Destination?>(null) }
+    fun updatePreviewFocus(candidate: Destination?, focused: Boolean) {
+        if (focused) {
+            previewDestination = candidate
+        } else if (previewDestination == candidate) {
+            previewDestination = null
+        }
+    }
+    val visibleDestination by rememberUpdatedState(destination)
+    LaunchedEffect(previewDestination) {
+        previewDestination?.let { preview ->
+            delay(DRAWER_PREVIEW_DELAY_MS)
+            viewModel.setContentTakeFocus(false)
+            if ((preview is Destination.Home && visibleDestination is Destination.Home) || preview == visibleDestination) {
+                return@let
+            }
+            viewModel.navigationManager.previewFromDrawer(preview)
+        }
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -304,6 +343,13 @@ fun NavDrawer(
     val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
+
+    LaunchedEffect(drawerState.currentValue) {
+        if (drawerState.currentValue == DrawerValue.Closed) {
+            previewDestination = null
+            viewModel.setContentTakeFocus(true)
+        }
+    }
 
     BackHandler(enabled = moreExpanded && drawerState.currentValue == DrawerValue.Open) {
         viewModel.setShowMore(false)
@@ -351,11 +397,14 @@ fun NavDrawer(
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
                         onClick = {
+                            previewDestination = null
+                            viewModel.setContentTakeFocus(true)
                             viewModel.navigateToSetup(
                                 SetupDestination.UserList(server),
                             )
                         },
-                        modifier = Modifier,
+                        modifier =
+                            Modifier.onFocusChanged { updatePreviewFocus(null, it.isFocused) },
                     )
                     AnimatedVisibility(
                         visible = serviceState.nowPlayingEnabled,
@@ -371,11 +420,14 @@ fun NavDrawer(
                             drawerOpen = isOpen,
                             interactionSource = interactionSource,
                             onClick = {
+                                previewDestination = null
+                                viewModel.setContentTakeFocus(true)
                                 viewModel.setIndex(NOW_PLAYING_INDEX)
                                 viewModel.navigationManager.navigateTo(Destination.NowPlaying)
                             },
                             modifier =
                                 Modifier
+                                    .onFocusChanged { updatePreviewFocus(null, it.isFocused) }
                                     .ifElse(
                                         selectedIndex == NOW_PLAYING_INDEX,
                                         Modifier.focusRequester(focusRequester),
@@ -409,12 +461,20 @@ fun NavDrawer(
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
                                 onClick = {
+                                    previewDestination = null
+                                    viewModel.setContentTakeFocus(true)
                                     viewModel.setIndex(SEARCH_INDEX)
-                                    viewModel.navigationManager.navigateToFromDrawer(Destination.Search())
+                                    viewModel.navigationManager.previewFromDrawer(Destination.Search())
                                 },
                                 modifier =
                                     Modifier
                                         .focusRequester(searchFocusRequester)
+                                        .onFocusChanged { focusState ->
+                                            updatePreviewFocus(
+                                                Destination.Search(activateInput = false),
+                                                focusState.isFocused,
+                                            )
+                                        }
                                         .ifElse(
                                             selectedIndex == SEARCH_INDEX,
                                             Modifier.focusRequester(focusRequester),
@@ -430,6 +490,8 @@ fun NavDrawer(
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
                                 onClick = {
+                                    previewDestination = null
+                                    viewModel.setContentTakeFocus(true)
                                     viewModel.setIndex(HOME_INDEX)
                                     if (destination is Destination.Home) {
                                         viewModel.navigationManager.reloadHome()
@@ -440,25 +502,36 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .onFocusChanged { focusState ->
+                                            updatePreviewFocus(Destination.Home(), focusState.isFocused)
+                                        }
                                         .ifElse(
                                             selectedIndex == HOME_INDEX,
                                             Modifier.focusRequester(focusRequester),
                                         ),
                             )
                         }
-                        itemsIndexed(serviceState.items) { index, it ->
+                        itemsIndexed(serviceState.items) { index, item ->
                             val interactionSource = remember { MutableInteractionSource() }
                             NavItem(
-                                library = it,
+                                library = item,
                                 selected = selectedIndex == index,
                                 moreExpanded = moreExpanded,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
                                 onClick = {
-                                    viewModel.onClickDrawerItem(index, it)
+                                    previewDestination = null
+                                    viewModel.setContentTakeFocus(true)
+                                    viewModel.onClickDrawerItem(index, item)
                                 },
                                 modifier =
                                     Modifier
+                                        .onFocusChanged { focusState ->
+                                            updatePreviewFocus(
+                                                (item as? ServerNavDrawerItem)?.previewDestination as? Destination.LibraryHub,
+                                                focusState.isFocused,
+                                            )
+                                        }
                                         .ifElse(
                                             selectedIndex == index,
                                             Modifier.focusRequester(focusRequester),
@@ -476,10 +549,12 @@ fun NavDrawer(
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
                                     onClick = {
+                                        previewDestination = null
                                         viewModel.onClickDrawerItem(index, NavDrawerItem.More)
                                     },
                                     modifier =
                                         Modifier
+                                            .onFocusChanged { updatePreviewFocus(null, it.isFocused) }
                                             .ifElse(
                                                 selectedIndex == index,
                                                 Modifier.focusRequester(focusRequester),
@@ -488,19 +563,21 @@ fun NavDrawer(
                             }
                         }
                         if (moreExpanded) {
-                            itemsIndexed(serviceState.moreItems) { index, it ->
+                            itemsIndexed(serviceState.moreItems) { index, item ->
                                 val adjustedIndex =
                                     remember(serviceState) { (index + serviceState.items.size) }
                                 val interactionSource = remember { MutableInteractionSource() }
                                 NavItem(
-                                    library = it,
+                                    library = item,
                                     selected = selectedIndex == adjustedIndex,
                                     moreExpanded = moreExpanded,
                                     drawerOpen = isOpen,
                                     onClick = {
+                                        previewDestination = null
+                                        viewModel.setContentTakeFocus(true)
                                         viewModel.onClickDrawerItem(
                                             adjustedIndex,
-                                            it,
+                                            item,
                                         )
                                     },
                                     containerColor =
@@ -512,6 +589,12 @@ fun NavDrawer(
                                     interactionSource = interactionSource,
                                     modifier =
                                         Modifier
+                                            .onFocusChanged { focusState ->
+                                                updatePreviewFocus(
+                                                    (item as? ServerNavDrawerItem)?.previewDestination as? Destination.LibraryHub,
+                                                    focusState.isFocused,
+                                                )
+                                            }
                                             .ifElse(
                                                 selectedIndex == adjustedIndex,
                                                 Modifier.focusRequester(focusRequester),
@@ -528,13 +611,16 @@ fun NavDrawer(
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
                                 onClick = {
+                                    previewDestination = null
+                                    viewModel.setContentTakeFocus(true)
                                     viewModel.navigationManager.navigateTo(
                                         Destination.Settings(
                                             PreferenceScreenOption.BASIC,
                                         ),
                                     )
                                 },
-                                modifier = Modifier,
+                                modifier =
+                                    Modifier.onFocusChanged { updatePreviewFocus(null, it.isFocused) },
                             )
                         }
                     }
@@ -546,17 +632,19 @@ fun NavDrawer(
             modifier = Modifier.fillMaxSize(),
         ) {
             // Drawer content
-            DestinationContent(
-                destination = destination,
-                preferences = preferences,
-                onClearBackdrop = onClearBackdrop,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .offset {
-                            offset
-                        }.padding(start = closedDrawerWidth + 8.dp, end = 16.dp),
-            )
+            CompositionLocalProvider(LocalContentTakeFocus provides state.contentTakeFocus) {
+                DestinationContent(
+                    destination = destination,
+                    preferences = preferences,
+                    onClearBackdrop = onClearBackdrop,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .offset {
+                                offset
+                            }.padding(start = closedDrawerWidth + 8.dp, end = 16.dp),
+                )
+            }
             if (preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()
             }
