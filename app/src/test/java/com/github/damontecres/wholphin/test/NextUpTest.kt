@@ -18,9 +18,12 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
+import org.jellyfin.sdk.api.client.extensions.itemsApi
+import org.jellyfin.sdk.api.operations.ItemsApi
 import org.jellyfin.sdk.api.operations.TvShowsApi
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
+import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -34,6 +37,7 @@ class NextUpTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val mockTvShowsApi = mockk<TvShowsApi>()
+    private val mockItemsApi = mockk<ItemsApi>()
     private val mockApi = mockk<ApiClient>(relaxed = true)
     private val mockDatePlayedService = mockk<DatePlayedService>()
     private val mockDisplayPreferencesService = mockk<DisplayPreferencesService>()
@@ -50,6 +54,7 @@ class NextUpTest {
     @Before
     fun setUp() {
         every { mockApi.tvShowsApi } returns mockTvShowsApi
+        every { mockApi.itemsApi } returns mockItemsApi
         coEvery {
             mockDisplayPreferencesService.getDisplayPreferences(
                 any(),
@@ -91,6 +96,22 @@ class NextUpTest {
             )
             Assert.assertEquals(10, nextUpSlot.captured.limit)
             Assert.assertNull(nextUpSlot.captured.nextUpDateCutoff)
+        }
+
+    @Test
+    fun `Watching requests use optional library scope`() =
+        runTest {
+            val parentId = UUID.randomUUID()
+            val resumeSlot = CapturingSlot<GetResumeItemsRequest>()
+            val nextUpSlot = CapturingSlot<GetNextUpRequest>()
+            coEvery { mockItemsApi.getResumeItems(capture(resumeSlot)) } returns mockQueryResult()
+            coEvery { mockTvShowsApi.getNextUp(capture(nextUpSlot)) } returns mockQueryResult()
+
+            latestNextUpService.getResume(UUID.randomUUID(), 10, true, parentId = parentId)
+            latestNextUpService.getNextUp(UUID.randomUUID(), 10, true, true, -1, parentId = parentId)
+
+            Assert.assertEquals(parentId, resumeSlot.captured.parentId)
+            Assert.assertEquals(parentId, nextUpSlot.captured.parentId)
         }
 
     @Test

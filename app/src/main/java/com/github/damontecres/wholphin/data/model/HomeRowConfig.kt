@@ -28,6 +28,7 @@ sealed interface HomeRowConfig {
     @SerialName("ContinueWatching")
     data class ContinueWatching(
         override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+        val parentId: UUID? = null,
     ) : HomeRowConfig {
         override fun updateViewOptions(viewOptions: HomeRowViewOptions): ContinueWatching = this.copy(viewOptions = viewOptions)
     }
@@ -39,6 +40,7 @@ sealed interface HomeRowConfig {
     @SerialName("NextUp")
     data class NextUp(
         override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+        val parentId: UUID? = null,
     ) : HomeRowConfig {
         override fun updateViewOptions(viewOptions: HomeRowViewOptions): NextUp = this.copy(viewOptions = viewOptions)
     }
@@ -50,6 +52,7 @@ sealed interface HomeRowConfig {
     @SerialName("ContinueWatchingCombined")
     data class ContinueWatchingCombined(
         override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+        val parentId: UUID? = null,
     ) : HomeRowConfig {
         override fun updateViewOptions(viewOptions: HomeRowViewOptions): ContinueWatchingCombined = this.copy(viewOptions = viewOptions)
     }
@@ -76,6 +79,30 @@ sealed interface HomeRowConfig {
         override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
     ) : HomeRowConfig {
         override fun updateViewOptions(viewOptions: HomeRowViewOptions): RecentlyReleased = this.copy(viewOptions = viewOptions)
+    }
+
+    /**
+     * Highest-rated unwatched media in a library
+     */
+    @Serializable
+    @SerialName("TopUnwatched")
+    data class TopUnwatched(
+        val parentId: UUID,
+        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+    ) : HomeRowConfig {
+        override fun updateViewOptions(viewOptions: HomeRowViewOptions): TopUnwatched = this.copy(viewOptions = viewOptions)
+    }
+
+    /**
+     * Collections containing media from a library
+     */
+    @Serializable
+    @SerialName("Collections")
+    data class Collections(
+        val parentId: UUID,
+        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+    ) : HomeRowConfig {
+        override fun updateViewOptions(viewOptions: HomeRowViewOptions): Collections = this.copy(viewOptions = viewOptions)
     }
 
     /**

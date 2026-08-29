@@ -742,6 +742,18 @@ class HomeSettingsViewModel
                                     it.config.updateViewOptions(viewOptions)
                                 }
 
+                                is HomeRowConfig.TopUnwatched -> {
+                                    val collectionType = getCollectionType(it.config.parentId)
+                                    val viewOptions = preset.getByCollectionType(collectionType)
+                                    it.config.updateViewOptions(viewOptions)
+                                }
+
+                                is HomeRowConfig.Collections -> {
+                                    val collectionType = getCollectionType(it.config.parentId)
+                                    val viewOptions = preset.getByCollectionType(collectionType)
+                                    it.config.updateViewOptions(viewOptions)
+                                }
+
                                 is HomeRowConfig.Recordings -> {
                                     it.config.updateViewOptions(preset.tvLibrary)
                                 }
@@ -787,13 +799,25 @@ class HomeSettingsViewModel
             viewModelScope.launchDefault {
                 when (action) {
                     HomeRowConfigAction.Combine -> {
+                        val parentId =
+                            when (val config = row.config) {
+                                is ContinueWatching -> config.parentId
+                                is NextUp -> config.parentId
+                                else -> null
+                            }
                         val index =
                             state.value.rows
                                 .indexOf(row)
                                 .coerceAtLeast(0)
                         val rowsToRemove =
                             state.value.rows
-                                .filter { it.config is ContinueWatching || it.config is NextUp }
+                                .filter {
+                                    when (val config = it.config) {
+                                        is ContinueWatching -> config.parentId == parentId
+                                        is NextUp -> config.parentId == parentId
+                                        else -> false
+                                    }
+                                }
 
                         updateState {
                             it.copy(
@@ -805,7 +829,7 @@ class HomeSettingsViewModel
                                             HomeRowConfigDisplay(
                                                 id = it.rows[index].id,
                                                 title = ResStringProvider(R.string.combine_continue_next),
-                                                config = ContinueWatchingCombined(row.config.viewOptions),
+                                                config = ContinueWatchingCombined(row.config.viewOptions, parentId),
                                             ),
                                         )
                                         removeAll(rowsToRemove)
@@ -816,6 +840,7 @@ class HomeSettingsViewModel
                     }
 
                     HomeRowConfigAction.Split -> {
+                        val parentId = (row.config as ContinueWatchingCombined).parentId
                         val index =
                             state.value.rows
                                 .indexOf(row)
@@ -830,7 +855,7 @@ class HomeSettingsViewModel
                                             HomeRowConfigDisplay(
                                                 id = it.rows[index].id,
                                                 title = ResStringProvider(R.string.continue_watching),
-                                                config = ContinueWatching(row.config.viewOptions),
+                                                config = ContinueWatching(row.config.viewOptions, parentId),
                                             ),
                                         )
                                         add(
@@ -838,7 +863,7 @@ class HomeSettingsViewModel
                                             HomeRowConfigDisplay(
                                                 id = idCounter++,
                                                 title = ResStringProvider(R.string.next_up),
-                                                config = NextUp(row.config.viewOptions),
+                                                config = NextUp(row.config.viewOptions, parentId),
                                             ),
                                         )
                                     },

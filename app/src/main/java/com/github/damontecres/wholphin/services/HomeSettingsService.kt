@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.preferences.DefaultUserConfiguration
 import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.ui.HomeItemFields
 import com.github.damontecres.wholphin.ui.ProgramItemFields
+import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.components.getGenreImageMap
 import com.github.damontecres.wholphin.ui.formatTypeName
 import com.github.damontecres.wholphin.ui.main.settings.Library
@@ -457,6 +458,22 @@ class HomeSettingsService
                     )
                 }
 
+                is HomeRowConfig.TopUnwatched -> {
+                    HomeRowConfigDisplay(
+                        id,
+                        ResStringProvider(R.string.top_unwatched),
+                        config,
+                    )
+                }
+
+                is HomeRowConfig.Collections -> {
+                    HomeRowConfigDisplay(
+                        id,
+                        ResStringProvider(R.string.collections),
+                        config,
+                    )
+                }
+
                 is HomeRowConfig.Genres -> {
                     val title = getItemName(R.string.genres_in, config.parentId)
                     HomeRowConfigDisplay(
@@ -592,6 +609,7 @@ class HomeSettingsService
                             limit,
                             true,
                             row.viewOptions.useSeries,
+                            row.parentId,
                         )
 
                     Success(
@@ -612,6 +630,7 @@ class HomeSettingsService
                             false,
                             prefs.maxDaysNextUp,
                             row.viewOptions.useSeries,
+                            row.parentId,
                         )
 
                     Success(
@@ -630,6 +649,7 @@ class HomeSettingsService
                             limit,
                             true,
                             row.viewOptions.useSeries,
+                            row.parentId,
                         )
                     val nextUp =
                         latestNextUpService.getNextUp(
@@ -639,6 +659,7 @@ class HomeSettingsService
                             false,
                             prefs.maxDaysNextUp,
                             row.viewOptions.useSeries,
+                            row.parentId,
                         )
                     val combined = latestNextUpService.buildCombined(resume, nextUp)
 
@@ -648,6 +669,80 @@ class HomeSettingsService
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = combined.size >= limit,
+                    )
+                }
+
+                is HomeRowConfig.TopUnwatched -> {
+                    val library = libraries.firstOrNull { it.itemId == row.parentId }
+                    val request =
+                        GetItemsRequest(
+                            userId = userDto.id,
+                            parentId = row.parentId,
+                            recursive = true,
+                            includeItemTypes = SuggestionsWorker.getTypeForCollection(library?.collectionType)?.let(::listOf),
+                            fields = SlimItemFields,
+                            enableUserData = true,
+                            isPlayed = false,
+                            sortBy = listOf(ItemSortBy.COMMUNITY_RATING),
+                            sortOrder = listOf(SortOrder.DESCENDING),
+                            enableTotalRecordCount = false,
+                            limit = limit,
+                        )
+                    val items =
+                        if (usePaging) {
+                            ApiRequestPager(
+                                api,
+                                request,
+                                GetItemsRequestHandler,
+                                scope,
+                                useSeriesForPrimary = row.viewOptions.useSeries,
+                            ).init()
+                        } else {
+                            GetItemsRequestHandler
+                                .execute(api, request)
+                                .content.items
+                                .map { BaseItem(it, row.viewOptions.useSeries) }
+                        }
+                    Success(
+                        title = ResStringProvider(R.string.top_unwatched),
+                        items = items,
+                        viewOptions = row.viewOptions,
+                        rowType = row,
+                        showViewMore = items.size >= limit,
+                    )
+                }
+
+                is HomeRowConfig.Collections -> {
+                    val request =
+                        GetItemsRequest(
+                            userId = userDto.id,
+                            parentId = row.parentId,
+                            recursive = true,
+                            includeItemTypes = listOf(BaseItemKind.BOX_SET),
+                            fields = SlimItemFields,
+                            limit = limit,
+                        )
+                    val items =
+                        if (usePaging) {
+                            ApiRequestPager(
+                                api,
+                                request,
+                                GetItemsRequestHandler,
+                                scope,
+                                useSeriesForPrimary = row.viewOptions.useSeries,
+                            ).init()
+                        } else {
+                            GetItemsRequestHandler
+                                .execute(api, request)
+                                .content.items
+                                .map { BaseItem(it, row.viewOptions.useSeries) }
+                        }
+                    Success(
+                        title = ResStringProvider(R.string.collections),
+                        items = items,
+                        viewOptions = row.viewOptions,
+                        rowType = row,
+                        showViewMore = items.size >= limit,
                     )
                 }
 

@@ -53,6 +53,14 @@ class TestHomeRowSamples {
                 HomeRowConfig.ContinueWatchingCombined(
                     viewOptions = HomeRowViewOptions(),
                 ),
+                HomeRowConfig.TopUnwatched(
+                    parentId = UUID.randomUUID(),
+                    viewOptions = HomeRowViewOptions(),
+                ),
+                HomeRowConfig.Collections(
+                    parentId = UUID.randomUUID(),
+                    viewOptions = HomeRowViewOptions(),
+                ),
                 HomeRowConfig.ByParent(
                     parentId = UUID.randomUUID(),
                     recursive = true,
@@ -88,6 +96,8 @@ class TestHomeRowSamples {
             when (it) {
                 is HomeRowConfig.ContinueWatching -> foundTypes.add(it::class)
                 is HomeRowConfig.ContinueWatchingCombined -> foundTypes.add(it::class)
+                is HomeRowConfig.TopUnwatched -> foundTypes.add(it::class)
+                is HomeRowConfig.Collections -> foundTypes.add(it::class)
                 is HomeRowConfig.Genres -> foundTypes.add(it::class)
                 is HomeRowConfig.NextUp -> foundTypes.add(it::class)
                 is HomeRowConfig.RecentlyAdded -> foundTypes.add(it::class)
@@ -117,6 +127,18 @@ class TestHomeRowSamples {
         val string = json.encodeToString(SAMPLES)
         println(string)
         json.decodeFromString<List<HomeRowConfig>>(string)
+    }
+
+    @Test
+    fun `Legacy watching rows remain global`() {
+        val rows =
+            Json.decodeFromString<List<HomeRowConfig>>(
+                """[{"type":"ContinueWatching"},{"type":"NextUp"},{"type":"ContinueWatchingCombined"}]""",
+            )
+
+        Assert.assertNull((rows[0] as HomeRowConfig.ContinueWatching).parentId)
+        Assert.assertNull((rows[1] as HomeRowConfig.NextUp).parentId)
+        Assert.assertNull((rows[2] as HomeRowConfig.ContinueWatchingCombined).parentId)
     }
 
     @Test
