@@ -1,11 +1,11 @@
 ---
 id: wphn-002
 title: Add explicit library hub and browse destinations
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-29 17:32'
+updated_date: '2026-08-29 17:35'
 labels:
   - android
   - navigation
