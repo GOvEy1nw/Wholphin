@@ -290,6 +290,7 @@ fun HomePageContent(
     modifier: Modifier = Modifier,
     loadingState: LoadingState? = null,
     listState: LazyListState = rememberLazyListState(),
+    firstMediaFocusRequester: FocusRequester? = null,
     takeFocus: Boolean = true,
     showEmptyRows: Boolean = false,
     headerComposable: @Composable (focusedItem: BaseItem?) -> Unit = { focusedItem ->
@@ -300,6 +301,7 @@ fun HomePageContent(
         )
     },
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
+    onFocusedItem: (BaseItem?) -> Unit = {},
 ) {
     val focusedItem =
         remember(homeRows, position) {
@@ -309,29 +311,42 @@ fun HomePageContent(
         }
 
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
+    val firstMediaRowIndex =
+        remember(homeRows) {
+            homeRows.indexOfFirstOrNull { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }
+        }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
     val currentOnFocusPosition by rememberUpdatedState(onFocusPosition)
     val currentOnClickPlay by rememberUpdatedState(onClickPlay)
+    val currentOnFocusedItem by rememberUpdatedState(onFocusedItem)
+    val focusRequesterFor: (Int) -> FocusRequester = { rowIndex ->
+        if (rowIndex == firstMediaRowIndex && firstMediaFocusRequester != null) {
+            firstMediaFocusRequester
+        } else {
+            rowFocusRequesters[rowIndex]
+        }
+    }
+    val requestRowFocus: (Int) -> Boolean = { rowIndex ->
+        val row = homeRows.getOrNull(rowIndex) as? HomeRowLoadingState.Success
+        row?.items?.takeIf { it.isNotEmpty() }?.let { focusRequesterFor(rowIndex).tryRequestFocus() } == true
+    }
 
     if (takeFocus && LocalContentTakeFocus.current) {
         LaunchedEffect(homeRows) {
             if (!firstFocused && homeRows.isNotEmpty()) {
-                if (position.row >= 0) {
-                    val index = position.row.coerceIn(0, rowFocusRequesters.lastIndex)
-                    rowFocusRequesters.getOrNull(index)?.tryRequestFocus()
+                if (position.row >= 0 && requestRowFocus(position.row)) {
                     firstFocused = true
                 } else {
                     // Waiting for the first home row to load, then focus on it
-                    homeRows
-                        .indexOfFirstOrNull { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }
-                        ?.let {
-                            rowFocusRequesters[it].tryRequestFocus()
+                    firstMediaRowIndex?.let {
+                        if (requestRowFocus(it)) {
                             firstFocused = true
                             delay(50)
                             listState.scrollToItem(it)
                         }
+                    }
                 }
             }
         }
@@ -339,13 +354,16 @@ fun HomePageContent(
     LaunchedEffect(onUpdateBackdrop, focusedItem) {
         focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
+    LaunchedEffect(focusedItem) { currentOnFocusedItem(focusedItem) }
     Box(modifier = modifier) {
         Column(
             modifier =
                 Modifier
                     .focusProperties {
                         onEnter = {
-                            rowFocusRequesters.getOrNull(currentPosition.row)?.tryRequestFocus()
+                            if (!requestRowFocus(currentPosition.row)) {
+                                firstMediaRowIndex?.let(requestRowFocus)
+                            }
                         }
                     }.fillMaxSize(),
         ) {
@@ -433,7 +451,7 @@ fun HomePageContent(
                                                 rowModifier
                                                     .fillMaxWidth()
                                                     .focusGroup()
-                                                    .focusRequester(rowFocusRequesters[rowIndex]),
+                                                    .focusRequester(focusRequesterFor(rowIndex)),
                                             horizontalPadding = viewOptions.spacing.dp,
                                             cardContent = { index, item, cardModifier, onClick, onLongClick ->
                                                 val onFocus =

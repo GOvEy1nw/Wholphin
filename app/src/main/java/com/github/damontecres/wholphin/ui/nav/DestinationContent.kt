@@ -43,6 +43,7 @@ import com.github.damontecres.wholphin.ui.discover.DiscoverPage
 import com.github.damontecres.wholphin.ui.discover.DiscoverRequestGrid
 import com.github.damontecres.wholphin.ui.main.HomePage
 import com.github.damontecres.wholphin.ui.main.settings.HomeSettingsPage
+import com.github.damontecres.wholphin.ui.library.LibraryHub
 import com.github.damontecres.wholphin.ui.playback.PlayExternalPage
 import com.github.damontecres.wholphin.ui.playback.PlaybackPage
 import com.github.damontecres.wholphin.ui.preferences.PreferencesPage
@@ -290,12 +291,9 @@ fun DestinationContent(
 
         is Destination.LibraryHub -> {
             LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-            CollectionFolder(
+            LibraryHub(
                 preferences = preferences,
-                destination = Destination.MediaItem(destination.itemId, destination.type, destination.collectionType),
-                collectionType = destination.collectionType,
-                usePostersOverride = null,
-                recursiveOverride = null,
+                destination = destination,
                 modifier = modifier,
             )
         }

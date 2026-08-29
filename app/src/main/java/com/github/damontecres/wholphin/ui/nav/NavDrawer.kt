@@ -106,7 +106,7 @@ import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
 
-private const val DRAWER_PREVIEW_DELAY_MS = 300L
+private const val DRAWER_PREVIEW_DELAY_MS = 150L
 
 @HiltViewModel
 class NavDrawerViewModel
@@ -178,43 +178,41 @@ class NavDrawerViewModel
          * Determine which nav drawer item should be highlighted as currently selected
          */
         fun updateSelectedIndex() {
-            viewModelScope.launchDefault {
-                val asDestinations =
-                    buildList {
-                        addAll(serviceState.value.items)
-                        addAll(serviceState.value.moreItems)
-                    }.map {
-                        when (it) {
-                            is ServerNavDrawerItem -> it.clickDestination
-                            is NavDrawerItem.Favorites -> Destination.Favorites
-                            is NavDrawerItem.Discover -> Destination.Discover
-                            else -> null
-                        }
+            val asDestinations =
+                buildList {
+                    addAll(serviceState.value.items)
+                    addAll(serviceState.value.moreItems)
+                }.map {
+                    when (it) {
+                        is ServerNavDrawerItem -> listOf(it.previewDestination, it.clickDestination)
+                        is NavDrawerItem.Favorites -> listOf(Destination.Favorites)
+                        is NavDrawerItem.Discover -> listOf(Destination.Discover)
+                        else -> emptyList()
                     }
+                }
 
-                val backstack = navigationManager.backStack.toList().reversed()
-                for (i in 0..<backstack.size) {
-                    val key = backstack[i]
-                    val index =
-                        if (key is Destination.Home) {
-                            HOME_INDEX
-                        } else if (key is Destination.Search) {
-                            SEARCH_INDEX
-                        } else if (key is Destination.NowPlaying) {
-                            NOW_PLAYING_INDEX
+            val backstack = navigationManager.backStack.toList().reversed()
+            for (i in 0..<backstack.size) {
+                val key = backstack[i]
+                val index =
+                    if (key is Destination.Home) {
+                        HOME_INDEX
+                    } else if (key is Destination.Search) {
+                        SEARCH_INDEX
+                    } else if (key is Destination.NowPlaying) {
+                        NOW_PLAYING_INDEX
+                    } else {
+                        val idx = asDestinations.indexOfFirst { key in it }
+                        if (idx >= 0) {
+                            idx
                         } else {
-                            val idx = asDestinations.indexOf(key)
-                            if (idx >= 0) {
-                                idx
-                            } else {
-                                null
-                            }
+                            null
                         }
-                    Timber.v("Found $index => $key")
-                    if (index != null) {
-                        _state.update { it.copy(selectedIndex = index) }
-                        break
                     }
+                Timber.v("Found $index => $key")
+                if (index != null) {
+                    _state.update { it.copy(selectedIndex = index) }
+                    break
                 }
             }
         }
@@ -325,6 +323,7 @@ fun NavDrawer(
                 return@let
             }
             viewModel.navigationManager.previewFromDrawer(preview)
+            viewModel.updateSelectedIndex()
         }
     }
     val scope = rememberCoroutineScope()
@@ -343,6 +342,12 @@ fun NavDrawer(
     val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
+
+    LaunchedEffect(destination, drawerState.currentValue, selectedIndex, state.contentTakeFocus) {
+        if (drawerState.currentValue == DrawerValue.Open && !state.contentTakeFocus) {
+            focusRequester.requestFocus()
+        }
+    }
 
     LaunchedEffect(drawerState.currentValue) {
         if (drawerState.currentValue == DrawerValue.Closed) {
@@ -376,6 +381,7 @@ fun NavDrawer(
     ModalNavigationDrawer(
         modifier = modifier,
         drawerState = drawerState,
+        closeOnFocusLost = state.contentTakeFocus,
         drawerContent = { drawerValue ->
             val isOpen = drawerValue.isOpen
             val spacedBy = 4.dp
@@ -448,6 +454,11 @@ fun NavDrawer(
                                             searchFocusRequester.tryRequestFocus()
                                         } else {
                                             focusRequester.tryRequestFocus()
+                                        }
+                                    }
+                                    onExit = {
+                                        if (requestedFocusDirection == FocusDirection.Right) {
+                                            viewModel.setContentTakeFocus(true)
                                         }
                                     }
                                 }.fillMaxHeight(),

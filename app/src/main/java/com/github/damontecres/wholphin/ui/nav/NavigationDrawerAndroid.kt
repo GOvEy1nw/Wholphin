@@ -67,6 +67,7 @@ fun ModalNavigationDrawer(
     drawerContent: @Composable NavigationDrawerScope.(DrawerValue) -> Unit,
     modifier: Modifier = Modifier,
     drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed),
+    closeOnFocusLost: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier) {
@@ -75,6 +76,7 @@ fun ModalNavigationDrawer(
                 Modifier
                     .align(Alignment.CenterStart),
             drawerState = drawerState,
+            closeOnFocusLost = closeOnFocusLost,
             content = drawerContent,
         )
 
@@ -86,6 +88,7 @@ fun ModalNavigationDrawer(
 private fun DrawerSheet(
     modifier: Modifier = Modifier,
     drawerState: DrawerState = remember { DrawerState() },
+    closeOnFocusLost: Boolean = true,
     content: @Composable NavigationDrawerScope.(DrawerValue) -> Unit,
 ) {
     // indicates that the drawer has been set to its initial state and has grabbed focus if
@@ -94,11 +97,19 @@ private fun DrawerSheet(
     var focusState by remember { mutableStateOf<FocusState?>(null) }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(key1 = drawerState.currentValue) {
-        if (drawerState.currentValue == DrawerValue.Open && focusState?.hasFocus == false) {
+        if (drawerState.currentValue == DrawerValue.Open && focusState?.hasFocus == false && closeOnFocusLost) {
             // used to grab focus if the drawer state is set to Open on start.
             focusRequester.requestFocus()
         }
         initializationComplete = true
+    }
+    LaunchedEffect(initializationComplete, focusState?.hasFocus, closeOnFocusLost) {
+        if (!initializationComplete) return@LaunchedEffect
+        if (focusState?.hasFocus == true) {
+            drawerState.setValue(DrawerValue.Open)
+        } else if (focusState?.hasFocus == false && closeOnFocusLost) {
+            drawerState.setValue(DrawerValue.Closed)
+        }
     }
 
     val internalModifier =
@@ -116,10 +127,6 @@ private fun DrawerSheet(
             .then(modifier)
             .onFocusChanged {
                 focusState = it
-
-                if (initializationComplete) {
-                    drawerState.setValue(if (it.hasFocus) DrawerValue.Open else DrawerValue.Closed)
-                }
             }.focusGroup()
 
     Box(modifier = internalModifier) {
