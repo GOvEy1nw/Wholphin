@@ -1,11 +1,11 @@
 ---
 id: wphn-003
 title: Implement drawer preview and library browse back-stack semantics
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-29 17:50'
+updated_date: '2026-08-29 17:53'
 labels:
   - android
   - navigation
@@ -105,6 +105,8 @@ Verification:
 Environment/deviations:
 - The initial sandboxed Gradle run was inconclusive/failing because Windows denied Kotlin daemon, generated `R.jar`, and Gradle problems-report access. The authorized host rerun exposed an Android Log/ACRA JVM issue, resolved by reusing the repository's Robolectric runner; the final authorized rerun passed.
 - No Compose UI tests or full unrelated suite were run; the task calls for focused back-stack JVM checks plus touched-module compilation.
+
+Human approval received on 2026-08-29; task accepted for publication.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
