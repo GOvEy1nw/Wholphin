@@ -80,6 +80,20 @@ sealed class Destination(
     }
 
     @Serializable
+    data class LibraryHub(
+        val itemId: UUID,
+        val type: BaseItemKind,
+        val collectionType: CollectionType?,
+    ) : Destination()
+
+    @Serializable
+    data class LibraryBrowse(
+        val itemId: UUID,
+        val type: BaseItemKind,
+        val collectionType: CollectionType?,
+    ) : Destination()
+
+    @Serializable
     data class Recordings(
         val itemId: UUID,
     ) : Destination()

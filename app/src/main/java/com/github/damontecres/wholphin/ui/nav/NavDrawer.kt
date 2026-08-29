@@ -140,7 +140,7 @@ class NavDrawerViewModel
 
                 is ServerNavDrawerItem -> {
                     setIndex(index)
-                    navigationManager.navigateToFromDrawer(item.destination)
+                    navigationManager.navigateToFromDrawer(item.clickDestination)
                 }
             }
         }
@@ -166,7 +166,7 @@ class NavDrawerViewModel
                         addAll(serviceState.value.moreItems)
                     }.map {
                         when (it) {
-                            is ServerNavDrawerItem -> it.destination
+                            is ServerNavDrawerItem -> it.clickDestination
                             is NavDrawerItem.Favorites -> Destination.Favorites
                             is NavDrawerItem.Discover -> Destination.Discover
                             else -> null
@@ -251,7 +251,8 @@ sealed interface NavDrawerItem {
 data class ServerNavDrawerItem(
     val itemId: UUID,
     val name: String,
-    val destination: Destination,
+    val previewDestination: Destination,
+    val clickDestination: Destination,
     val type: CollectionType,
 ) : NavDrawerItem {
     override val id: String = getId(itemId)

@@ -7,6 +7,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.NavPinType
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
 import com.github.damontecres.wholphin.ui.collectLatestIn
+import com.github.damontecres.wholphin.ui.library.isVideoLibrary
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -200,7 +201,7 @@ class NavDrawerService
             val libraries =
                 allLibraries
                     .map {
-                        val destination =
+                        val currentDestination =
                             if (it.isRecordingFolder) {
                                 Destination.Recordings(it.itemId)
                             } else {
@@ -210,10 +211,18 @@ class NavDrawerService
                                     it.collectionType,
                                 )
                             }
+                        val (previewDestination, clickDestination) =
+                            if (isVideoLibrary(it.type, it.collectionType, it.isRecordingFolder)) {
+                                Destination.LibraryHub(it.itemId, it.type, it.collectionType) to
+                                    Destination.LibraryBrowse(it.itemId, it.type, it.collectionType)
+                            } else {
+                                currentDestination to currentDestination
+                            }
                         ServerNavDrawerItem(
                             itemId = it.itemId,
                             name = it.name,
-                            destination = destination,
+                            previewDestination = previewDestination,
+                            clickDestination = clickDestination,
                             type = it.collectionType,
                         )
                     }

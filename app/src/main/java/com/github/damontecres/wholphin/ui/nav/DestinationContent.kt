@@ -288,6 +288,30 @@ fun DestinationContent(
             }
         }
 
+        is Destination.LibraryHub -> {
+            LaunchedEffect(Unit) { onClearBackdrop.invoke() }
+            CollectionFolder(
+                preferences = preferences,
+                destination = Destination.MediaItem(destination.itemId, destination.type, destination.collectionType),
+                collectionType = destination.collectionType,
+                usePostersOverride = null,
+                recursiveOverride = null,
+                modifier = modifier,
+            )
+        }
+
+        is Destination.LibraryBrowse -> {
+            LaunchedEffect(Unit) { onClearBackdrop.invoke() }
+            CollectionFolder(
+                preferences = preferences,
+                destination = Destination.MediaItem(destination.itemId, destination.type, destination.collectionType),
+                collectionType = destination.collectionType,
+                usePostersOverride = null,
+                recursiveOverride = null,
+                modifier = modifier,
+            )
+        }
+
         is Destination.FilteredCollection -> {
             LaunchedEffect(Unit) { onClearBackdrop.invoke() }
             CollectionFolderGeneric(
