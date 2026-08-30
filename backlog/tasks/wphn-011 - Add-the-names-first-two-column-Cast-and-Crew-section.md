@@ -1,9 +1,11 @@
 ---
 id: wphn-011
 title: Add the names-first two-column Cast and Crew section
-status: Ready
-assignee: []
-created_date: "2026-08-29"
+status: Human Review
+assignee:
+  - '@codex'
+created_date: '2026-08-29'
+updated_date: '2026-08-30 18:49'
 labels:
   - android
   - people
@@ -12,78 +14,80 @@ labels:
   - tests
 dependencies:
   - wphn-001
+modified_files:
+  - app/src/main/java/com/github/damontecres/wholphin/data/model/Person.kt
+  - >-
+    app/src/main/java/com/github/damontecres/wholphin/preferences/AppPreference.kt
+  - app/src/main/java/com/github/damontecres/wholphin/ui/cards/PersonRow.kt
+  - >-
+    app/src/main/java/com/github/damontecres/wholphin/ui/detail/movie/MovieDetails.kt
+  - >-
+    app/src/main/java/com/github/damontecres/wholphin/ui/detail/series/SeriesDetails.kt
+  - >-
+    app/src/main/java/com/github/damontecres/wholphin/ui/detail/series/SeriesOverviewContent.kt
+  - app/src/main/proto/WholphinDataStore.proto
+  - app/src/main/res/values/strings.xml
+  - app/src/test/java/com/github/damontecres/wholphin/data/model/PersonTest.kt
 priority: high
 ---
 
 ## Description
 
-Replace the default portrait-card person rows with one text-first Cast/Crew section that costs only one D-pad step during normal page traversal. Preserve the current image row behind an opt-in preference.
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Replace default portrait-card person rows with a text-first Cast/Crew table while preserving the current image row behind an opt-in preference.
 
 ## Goal
 
 Apply the agreed presentation consistently anywhere Wholphin currently renders people, without duplicating person queries or person-detail navigation.
 
-## Files to inspect
-
-- `data/model/Person.kt`
-- `ui/cards/PersonRow.kt`
-- `ui/cards/PersonCard.kt`
-- every `PersonRow(` call site under Movie, Series, Episode, Discover, and other detail pages
-- `preferences/AppPreference.kt`
-- `preferences/AppPreferencesSerializer.kt`
-- `app/src/main/proto/WholphinDataStore.proto`
-- preference upgrade conventions
-
 ## Implementation
 
-1. Add a positive preference:
+1. Add `Show people images`, default false, through the existing interface-preference proto/settings path.
+2. Keep the existing PersonRow/PersonCard image implementation as the enabled branch.
+3. Partition the current people list while preserving server order: actor, guest-star, artist, and album-artist kinds are Cast; all other kinds are Crew.
+4. Render Cast and Crew as two labeled groups with two equal-width subcolumns each. Show all entries; person name and role/job are each one line with ellipsis.
+5. Use direct person focus. Bind the caller requester to first Cast or first Crew, route Up/Down within a subcolumn, and route Left/Right to the nearest valid row while skipping empty subcolumns.
+6. Keep the table within the existing detail-content inset and use the containing detail page for scrolling.
+7. Route all PersonRow call sites through the shared preference-aware composable. Combine episode Guest Stars into Cast only in text mode; preserve separate rows in image mode.
+8. Add the focused classification test; validate focus geometry manually.
+<!-- SECTION:DESCRIPTION:END -->
 
-   ```text
-   Show people images
-   default: false
-   ```
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 New installs default to no person images/icons.
+- [x] #2 Text section has Cast and Crew groups with two equal-width subcolumns each and secondary role/job text.
+- [x] #3 All returned people are shown with one-line ellipsis when text exceeds a column.
+- [x] #4 Person entries are directly focusable without an outer section focus stop.
+- [x] #5 The caller focus requester targets first Cast, otherwise first Crew.
+- [x] #6 Cross-column navigation skips empty subcolumns and targets the nearest valid index.
+- [x] #7 Person OK still opens the existing person page.
+- [x] #8 Enabling Show people images restores existing image-card behaviour.
+- [x] #9 All current PersonRow call sites use the shared preference-aware path.
+<!-- AC:END -->
 
-   Proto3’s false default matches the desired default. Add serializer/upgrade work only where the project’s current preference rules require it.
+## Implementation Plan
 
-2. Keep the existing `PersonRow`/`PersonCard` implementation as the image-enabled branch. Do not rewrite it.
-3. Add one text `PeopleSection` that partitions the current list while preserving server order:
-   - Cast: `ACTOR`, `GUEST_STAR`, and equivalent performer kinds returned by the current SDK.
-   - Crew: directors, writers, producers, composers, creators, and every other non-cast person kind.
-4. Render two side-by-side vertical columns:
-   - name as primary text;
-   - `role` when supplied, otherwise a readable person-kind/job label;
-   - Cast left, Crew right;
-   - all returned entries, no cap or View All.
-5. Outer mode:
-   - only the whole section container can focus;
-   - children have `canFocus = false`;
-   - normal Up/Down crosses the section in one step;
-   - show one clear focused container/heading state.
-6. OK enters internal mode:
-   - enable child focus;
-   - focus first Cast entry, otherwise first Crew entry.
-7. Internal navigation:
-   - Up/Down within current column;
-   - Left/Right to `min(currentIndex, otherColumn.lastIndex)`;
-   - OK uses existing person navigation callback;
-   - Back exits internal mode and returns container focus;
-   - leaving/disposal clears internal mode.
-8. Avoid nested scroll containers. Let the containing detail page scroll the whole rendered section.
-9. Replace current person-row call sites through one common composable choice so the preference applies everywhere. Do not copy partition/focus state into each page.
-10. For pages that currently separate Guest Stars, combine them into Cast for the text section. If images are enabled, preserve the current separate image rows unless doing so creates a broken caller contract.
-11. Add a pure test for classification only if the mapping has more than trivial enum branches. Focus geometry remains manual.
+<!-- SECTION:PLAN:BEGIN -->
+1. Add the false-default Show people images preference through existing proto/settings paths. 2. Extend shared PersonRow with a text mode that partitions Cast/Crew, renders each group in two equal-width subcolumns, and keeps the existing image-card branch. 3. Bind caller focus directly to first Cast or first Crew and provide deterministic direct D-pad navigation across all four person columns. 4. Route all PersonRow callers through the preference-aware API, preserve separate episode image rows, add the focused classification test, compile, and validate on the TV emulator.
+<!-- SECTION:PLAN:END -->
 
-## Acceptance criteria
+## Implementation Notes
 
-- [ ] New installs default to no person images/icons.
-- [ ] Text section has Cast left and Crew right with secondary role/job text.
-- [ ] All returned people are shown.
-- [ ] The section costs one D-pad step in outer mode.
-- [ ] OK enters child focus; Back returns to section focus.
-- [ ] Cross-column navigation targets the nearest valid index.
-- [ ] Person OK still opens the existing person page.
-- [ ] Enabling Show people images restores existing image-card behaviour.
-- [ ] All current PersonRow call sites use the shared preference-aware path.
+<!-- SECTION:NOTES:BEGIN -->
+Implemented the shared preference-aware PersonRow path. Text mode partitions performer kinds into Cast and every other kind into Crew while preserving server order, then renders four equal-width person columns (two per group) with one-line ellipsized person and role/job text. Per the final review direction, person cells are directly focusable; the caller requester targets first Cast or first Crew and explicit D-pad routing skips empty subcolumns and clamps to the nearest valid row. The table is inset 16dp to the episode/content bounds. Existing portrait-card rows remain unchanged behind Show people images (proto field 16, false default); episode Guest Stars remain separate only in image mode.
+
+Files: Person.kt, AppPreference.kt, WholphinDataStore.proto, strings.xml, PersonRow.kt, MovieDetails.kt, SeriesDetails.kt, SeriesOverviewContent.kt, and PersonTest.kt.
+
+Verification: `gradlew :app:testDefaultDebugUnitTest --tests com.github.damontecres.wholphin.data.model.PersonTest :app:assembleDefaultDebug` passed after the final direct-focus revision. Earlier exact `gradlew :app:testDefaultDebugUnitTest` ran 360 tests with only the four known pre-existing ServerRepositoryTest FileStorage IOException failures; no unrelated repair was attempted. `git diff --check` passed. Android TV emulator evidence confirmed four equal columns clear of the nav rail, direct focus on Fernando Lindez, Right to Juan Gabriel Roig, and OK opened the existing Juan Gabriel Roig person page. A second Futurama journey confirmed index-clamped Cast-to-Crew navigation. Independent review returned ship with no findings.
+
+Deviation: the original outer-container/OK/internal-mode acceptance was explicitly superseded during review by direct person focus, matching the prior person-row interaction model.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added the default names-first Cast/Crew table through shared PersonRow, with four equal-width direct-focus columns, one-line ellipsized names/roles, stable classification, and an opt-in Show people images fallback. Verified by focused unit test, final APK assembly, diff check, Android TV focus/person-navigation journeys, and independent review; the full unit suite retains only four known pre-existing ServerRepositoryTest I/O failures.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Verification
 

@@ -391,6 +391,7 @@ fun MovieDetailsContent(
                 item {
                     PersonRow(
                         people = people,
+                        showImages = preferences.appPreferences.interfacePreferences.showPeopleImages,
                         onClick = {
                             position = PEOPLE_ROW
                             onClickPerson.invoke(it)
@@ -401,8 +402,8 @@ fun MovieDetailsContent(
                         },
                         modifier =
                             Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequesters[PEOPLE_ROW]),
+                                .fillMaxWidth(),
+                        focusRequester = focusRequesters[PEOPLE_ROW],
                     )
                 }
             }

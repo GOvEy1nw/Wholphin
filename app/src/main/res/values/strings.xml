@@ -413,6 +413,8 @@
     <string name="show_details">Show details</string>
     <string name="image_type">Image type</string>
     <string name="cast_and_crew"><![CDATA[Cast & Crew]]></string>
+    <string name="cast">Cast</string>
+    <string name="crew">Crew</string>
     <string name="guest_stars">Guest stars</string>
     <string name="edge_size">Edge size</string>
     <string name="refresh_rate_switching">Refresh rate switching</string>
@@ -743,6 +745,7 @@
     <string name="in_app_screensaver">Use in-app screensaver</string>
     <string name="delete_item">Are you sure you want to delete this item?</string>
     <string name="show_media_management">Show media management options</string>
+    <string name="show_people_images">Show people images</string>
     <string-array name="backdrop_style_options">
         <item>@string/backdrop_style_dynamic</item>
         <item>@string/backdrop_style_image</item>

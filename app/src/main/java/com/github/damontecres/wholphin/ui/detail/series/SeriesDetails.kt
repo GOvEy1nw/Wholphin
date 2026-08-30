@@ -539,6 +539,7 @@ fun SeriesDetailsContent(
                     item {
                         PersonRow(
                             people = people,
+                            showImages = preferences.appPreferences.interfacePreferences.showPeopleImages,
                             onClick = {
                                 position = PEOPLE_ROW
                                 onClickPerson.invoke(it)
@@ -559,8 +560,8 @@ fun SeriesDetailsContent(
                             },
                             modifier =
                                 Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(focusRequesters[PEOPLE_ROW]),
+                                    .fillMaxWidth(),
+                            focusRequester = focusRequesters[PEOPLE_ROW],
                         )
                     }
                 }

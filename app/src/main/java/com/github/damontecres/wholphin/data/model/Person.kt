@@ -75,7 +75,7 @@ private fun personRole(
     }
 
 @get:StringRes
-private val PersonKind.stringRes: Int?
+internal val PersonKind.stringRes: Int?
     get() =
         when (this) {
             PersonKind.UNKNOWN -> R.string.unknown
@@ -96,3 +96,11 @@ private val PersonKind.stringRes: Int?
             PersonKind.ALBUM_ARTIST -> R.string.artist
             else -> null
         }
+
+internal fun List<Person>.partitionCastAndCrew(): Pair<List<Person>, List<Person>> =
+    partition {
+        it.type == PersonKind.ACTOR ||
+            it.type == PersonKind.GUEST_STAR ||
+            it.type == PersonKind.ARTIST ||
+            it.type == PersonKind.ALBUM_ARTIST
+    }

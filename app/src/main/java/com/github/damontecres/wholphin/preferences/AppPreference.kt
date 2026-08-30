@@ -515,6 +515,18 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
+        val ShowPeopleImages =
+            AppSwitchPreference<AppPreferences>(
+                title = R.string.show_people_images,
+                defaultValue = false,
+                getter = { it.interfacePreferences.showPeopleImages },
+                setter = { prefs, value ->
+                    prefs.updateInterfacePreferences { showPeopleImages = value }
+                },
+                summaryOn = R.string.enabled,
+                summaryOff = R.string.disabled,
+            )
+
         val DisplayTogglesPref =
             AppMultiChoicePreference<AppPreferences, DisplayToggle>(
                 title = R.string.display_toggles_title,
@@ -1222,6 +1234,7 @@ val advancedPreferences =
                         AppPreference.ShowClock,
                         AppPreference.BackdropStylePref,
                         AppPreference.ShowLogos,
+                        AppPreference.ShowPeopleImages,
                         AppPreference.ManageMedia,
                         AppPreference.DisplayTogglesPref,
                         // Temporarily disabled, see https://github.com/damontecres/Wholphin/pull/127#issuecomment-3478058418

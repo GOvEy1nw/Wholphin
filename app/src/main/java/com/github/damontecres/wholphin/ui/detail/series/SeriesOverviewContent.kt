@@ -427,48 +427,65 @@ fun SeriesOverviewContent(
                 }
             }
 
-            val (guestStars, castAndCrew) =
-                remember(peopleInEpisode) {
-                    peopleInEpisode.partition { it.type == PersonKind.GUEST_STAR }
-                }
-
             AnimatedVisibility(
                 visible = peopleInEpisode.isNotEmpty(),
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (castAndCrew.isNotEmpty()) {
-                        PersonRow(
-                            title = R.string.cast_and_crew,
-                            people = castAndCrew,
-                            onClick = personOnClick,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .onFocusChanged {
-                                        if (it.hasFocus) focusTarget = SeriesFocusTarget.External
-                                    }
-                                    .focusRequester(castCrewRowFocusRequester),
-                        )
+                if (preferences.appPreferences.interfacePreferences.showPeopleImages) {
+                    val (guestStars, castAndCrew) =
+                        remember(peopleInEpisode) {
+                            peopleInEpisode.partition { it.type == PersonKind.GUEST_STAR }
+                        }
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (castAndCrew.isNotEmpty()) {
+                            PersonRow(
+                                title = R.string.cast_and_crew,
+                                people = castAndCrew,
+                                showImages = true,
+                                onClick = personOnClick,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged {
+                                            if (it.hasFocus) focusTarget = SeriesFocusTarget.External
+                                        },
+                                focusRequester = castCrewRowFocusRequester,
+                            )
+                        }
+                        if (guestStars.isNotEmpty()) {
+                            PersonRow(
+                                title = R.string.guest_stars,
+                                people = guestStars,
+                                showImages = true,
+                                onClick = personOnClick,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged {
+                                            if (it.hasFocus) focusTarget = SeriesFocusTarget.External
+                                        },
+                                focusRequester = guestStarRowFocusRequester,
+                            )
+                        }
                     }
-                    if (guestStars.isNotEmpty()) {
-                        PersonRow(
-                            title = R.string.guest_stars,
-                            people = guestStars,
-                            onClick = personOnClick,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .onFocusChanged {
-                                        if (it.hasFocus) focusTarget = SeriesFocusTarget.External
-                                    }
-                                    .focusRequester(guestStarRowFocusRequester),
-                        )
-                    }
+                } else {
+                    PersonRow(
+                        title = R.string.cast_and_crew,
+                        people = peopleInEpisode,
+                        showImages = false,
+                        onClick = personOnClick,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged {
+                                    if (it.hasFocus) focusTarget = SeriesFocusTarget.External
+                                },
+                        focusRequester = castCrewRowFocusRequester,
+                    )
                 }
             }
             AnimatedVisibility(
