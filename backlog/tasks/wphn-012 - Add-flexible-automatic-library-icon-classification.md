@@ -1,11 +1,11 @@
 ---
 id: wphn-012
 title: Add flexible automatic library icon classification
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-30 19:26'
+updated_date: '2026-08-30 21:20'
 labels:
   - android
   - navigation
@@ -95,6 +95,8 @@ Support the agreed family library vocabulary without manual configuration or bri
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented a pure normalized-name icon resolver using the existing bundled glyph resources and routed the existing NavItem renderer through it. Files: app/src/main/java/com/github/damontecres/wholphin/util/LibraryIconResolver.kt, app/src/main/java/com/github/damontecres/wholphin/ui/nav/NavDrawer.kt, app/src/test/java/com/github/damontecres/wholphin/util/LibraryIconResolverTest.kt. Verification: LibraryIconResolverTest XML reports 2 tests, 0 failures; :app:assembleDefaultDebug completed successfully; :app:testDefaultDebugUnitTest ran 362 tests with 358 passing and only the four pre-existing ServerRepositoryTest FileStorage.kt:114 IOException failures. git diff --check passed. Independent review verdict: ship. Deviations: none; plugin icon override, badges, artwork, settings, registry, and dependencies remain out of scope.
+
+Accepted by the user on 2026-08-30; approved for publication to origin/rais.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
