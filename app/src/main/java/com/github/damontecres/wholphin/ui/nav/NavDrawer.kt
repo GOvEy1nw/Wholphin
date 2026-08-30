@@ -183,6 +183,7 @@ class NavDrawerViewModel
                 buildList {
                     addAll(serviceState.value.items)
                     addAll(serviceState.value.moreItems)
+                    add(NavDrawerItem.Favorites)
                 }.map {
                     when (it) {
                         is ServerNavDrawerItem -> listOf(it.previewDestination, it.clickDestination)
@@ -613,6 +614,29 @@ fun NavDrawer(
                                             ),
                                 )
                             }
+                        }
+                        item {
+                            val index = serviceState.items.size + serviceState.moreItems.size
+                            val interactionSource = remember { MutableInteractionSource() }
+                            NavItem(
+                                library = NavDrawerItem.Favorites,
+                                selected = selectedIndex == index,
+                                moreExpanded = moreExpanded,
+                                drawerOpen = isOpen,
+                                interactionSource = interactionSource,
+                                onClick = {
+                                    previewDestination = null
+                                    viewModel.setContentTakeFocus(true)
+                                    viewModel.onClickDrawerItem(index, NavDrawerItem.Favorites)
+                                },
+                                modifier =
+                                    Modifier
+                                        .onFocusChanged { updatePreviewFocus(null, it.isFocused) }
+                                        .ifElse(
+                                            selectedIndex == index,
+                                            Modifier.focusRequester(focusRequester),
+                                        ),
+                            )
                         }
                         item {
                             val interactionSource = remember { MutableInteractionSource() }
