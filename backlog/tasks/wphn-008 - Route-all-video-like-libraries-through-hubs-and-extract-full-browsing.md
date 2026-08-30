@@ -1,11 +1,11 @@
 ---
 id: wphn-008
 title: Route all video-like libraries through hubs and extract full browsing
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-30 13:40'
+updated_date: '2026-08-30 13:43'
 labels:
   - android
   - navigation
@@ -106,6 +106,16 @@ Deviations:
 - The task requests In Review; this repository's configured equivalent is Human Review.
 - No unrelated pre-existing projectmem files were staged or repaired.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @codex
+created: 2026-08-30 13:43
+---
+User approved the implementation and requested publication on 2026-08-30.
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 
