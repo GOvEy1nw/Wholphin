@@ -1,11 +1,11 @@
 ---
 id: wphn-007
 title: Add the embedded Home and genre selector with in-place filtering
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-30 12:36'
+updated_date: '2026-08-30 12:56'
 labels:
   - android
   - library-hub
@@ -121,6 +121,16 @@ Deviations:
 - The task says In Review; this repository's configured equivalent status is Human Review.
 - No unrelated pre-existing projectmem working-tree files were staged.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @codex
+created: 2026-08-30 12:56
+---
+Accepted by the user; approved for push.
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 
