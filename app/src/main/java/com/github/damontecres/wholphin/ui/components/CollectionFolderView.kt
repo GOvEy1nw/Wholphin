@@ -79,6 +79,8 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -144,6 +146,8 @@ class CollectionFolderViewModel
 
         private val _state = MutableStateFlow(CollectionFolderState(viewOptions = defaultViewOptions))
         val state: StateFlow<CollectionFolderState> = _state
+        private var initJob: Job? = null
+        private var loadJob: Job? = null
 
         var position: Int
             get() = savedStateHandle.get<Int>("position") ?: 0
@@ -152,7 +156,7 @@ class CollectionFolderViewModel
             }
 
         init {
-            viewModelScope.launchIO {
+            initJob = viewModelScope.launchIO {
                 try {
                     val item =
                         itemId.toUUIDOrNull()?.let {
@@ -301,7 +305,9 @@ class CollectionFolderViewModel
             recursive: Boolean,
             filter: GetItemsFilter,
             useSeriesForPrimary: Boolean,
-        ) = viewModelScope.launch(WholphinDispatchers.IO) {
+        ): Job {
+            loadJob?.cancel()
+            val job = viewModelScope.launch(WholphinDispatchers.IO) {
             _state.update {
                 it.copy(
                     items = DataLoadingState.Loading,
@@ -320,6 +326,8 @@ class CollectionFolderViewModel
                         backgroundLoading = LoadingState.Success,
                     )
                 }
+            } catch (ex: CancellationException) {
+                throw ex
             } catch (ex: Exception) {
                 Timber.e(
                     ex,
@@ -334,6 +342,9 @@ class CollectionFolderViewModel
                     )
                 }
             }
+            }
+            loadJob = job
+            return job
         }
 
         private fun createPager(
@@ -558,6 +569,11 @@ class CollectionFolderViewModel
             themeSongPlayer.stop()
         }
 
+        fun cancelPendingLoads() {
+            initJob?.cancel()
+            loadJob?.cancel()
+        }
+
         fun onResumePage() {
             viewModelScope.launchIO {
                 state.value.item.successValue?.let {
@@ -627,6 +643,10 @@ fun CollectionFolderView(
     useSeriesForPrimary: Boolean = true,
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
+    gridFocusRequester: FocusRequester? = null,
+    onFocusedItem: (BaseItem?) -> Unit = {},
+    focusRequesterOnFirstRowUp: FocusRequester? = null,
+    cancelLoadsOnDispose: Boolean = false,
 ) = CollectionFolderView(
     preferences,
     itemId.toServerString(),
@@ -644,6 +664,10 @@ fun CollectionFolderView(
     useSeriesForPrimary = useSeriesForPrimary,
     filterOptions = filterOptions,
     focusRequesterOnEmpty = focusRequesterOnEmpty,
+    gridFocusRequester = gridFocusRequester,
+    onFocusedItem = onFocusedItem,
+    focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
+    cancelLoadsOnDispose = cancelLoadsOnDispose,
 )
 
 @Composable
@@ -664,6 +688,10 @@ fun CollectionFolderView(
     useSeriesForPrimary: Boolean = true,
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
+    gridFocusRequester: FocusRequester? = null,
+    onFocusedItem: (BaseItem?) -> Unit = {},
+    focusRequesterOnFirstRowUp: FocusRequester? = null,
+    cancelLoadsOnDispose: Boolean = false,
 ) = CollectionFolderView(
     preferences,
     itemId.toServerString(),
@@ -681,6 +709,10 @@ fun CollectionFolderView(
     useSeriesForPrimary = useSeriesForPrimary,
     filterOptions = filterOptions,
     focusRequesterOnEmpty = focusRequesterOnEmpty,
+    gridFocusRequester = gridFocusRequester,
+    onFocusedItem = onFocusedItem,
+    focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
+    cancelLoadsOnDispose = cancelLoadsOnDispose,
 )
 
 @Composable
@@ -701,6 +733,10 @@ fun CollectionFolderView(
     useSeriesForPrimary: Boolean = true,
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
+    gridFocusRequester: FocusRequester? = null,
+    onFocusedItem: (BaseItem?) -> Unit = {},
+    focusRequesterOnFirstRowUp: FocusRequester? = null,
+    cancelLoadsOnDispose: Boolean = false,
     viewModel: CollectionFolderViewModel =
         hiltViewModel<CollectionFolderViewModel, CollectionFolderViewModel.Factory>(
             key = viewModelKey,
@@ -720,6 +756,7 @@ fun CollectionFolderView(
         viewModel.onResumePage()
 
         onPauseOrDispose {
+            if (cancelLoadsOnDispose) viewModel.cancelPendingLoads()
             viewModel.release()
         }
     }
@@ -744,6 +781,9 @@ fun CollectionFolderView(
         },
         filterOptions = filterOptions,
         focusRequesterOnEmpty = focusRequesterOnEmpty,
+        gridFocusRequester = gridFocusRequester,
+        onFocusedItem = onFocusedItem,
+        focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
     )
 }
 
@@ -789,6 +829,9 @@ fun CollectionFolderViewContent(
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
+    gridFocusRequester: FocusRequester? = null,
+    onFocusedItem: (BaseItem?) -> Unit = {},
+    focusRequesterOnFirstRowUp: FocusRequester? = null,
 ) {
     val takeContentFocus = LocalContentTakeFocus.current
     var position by rememberInt(savedPosition)
@@ -865,7 +908,7 @@ fun CollectionFolderViewContent(
             DataLoadingState.Loading,
             DataLoadingState.Pending,
             -> {
-                LoadingPage(Modifier.fillMaxSize())
+                LoadingPage(Modifier.fillMaxSize(), focusEnabled = takeContentFocus)
             }
 
             is DataLoadingState.Error -> {
@@ -881,7 +924,7 @@ fun CollectionFolderViewContent(
                         ?: stringResource(R.string.collection)
                 Column(modifier = Modifier.fillMaxSize()) {
                     var showHeader by rememberSaveable { mutableStateOf(true) }
-                    val gridFocusRequester = remember { FocusRequester() }
+                    val gridFocusRequester = gridFocusRequester ?: remember { FocusRequester() }
                     val pager = remember(state.items) { state.items.successValue }
 
                     val focusedItem = pager?.getOrNull(position)
@@ -928,10 +971,13 @@ fun CollectionFolderViewContent(
                         DataLoadingState.Loading,
                         DataLoadingState.Pending,
                         -> {
-                            LoadingPage(Modifier.fillMaxSize())
+                            LoadingPage(Modifier.fillMaxSize(), focusEnabled = takeContentFocus)
                         }
 
                         is DataLoadingState.Success<List<BaseItem?>> -> {
+                            LaunchedEffect(pager.data) {
+                                onFocusedItem(pager.data.firstOrNull { it != null })
+                            }
                             if (takeContentFocus) {
                                 LaunchedEffect(Unit) {
                                     val focusRequester =
@@ -965,6 +1011,8 @@ fun CollectionFolderViewContent(
                                         viewOptions = state.viewOptions,
                                         onClickPlay = gridActions.onClickPlayRemoteButton!!,
                                         focusedItem = focusedItem,
+                                        onFocusedItem = onFocusedItem,
+                                        focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
                                     )
                                 } else {
                                     CollectionFolderList(

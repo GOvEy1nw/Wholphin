@@ -1,10 +1,20 @@
 package com.github.damontecres.wholphin.ui.library
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -13,6 +23,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.data.model.createGenreDestination
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -27,17 +38,27 @@ import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.LocalContentTakeFocus
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
+import com.github.damontecres.wholphin.ui.components.CollectionFolderView
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
+import com.github.damontecres.wholphin.ui.components.TabDetails
+import com.github.damontecres.wholphin.ui.components.TabRow
+import com.github.damontecres.wholphin.ui.components.ViewOptionsPoster
+import com.github.damontecres.wholphin.ui.components.baseItemKinds
 import com.github.damontecres.wholphin.ui.components.rememberContextMenu
 import com.github.damontecres.wholphin.ui.data.RowColumn
+import com.github.damontecres.wholphin.ui.data.MovieSortOptions
+import com.github.damontecres.wholphin.ui.data.SeriesSortOptions
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.main.HomePageContent
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.main.isContinueWatchingNextUp
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.util.EmptyStringProvider
+import com.github.damontecres.wholphin.ui.util.StringStringProvider
+import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
@@ -57,6 +78,9 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.CollectionType
+import org.jellyfin.sdk.model.api.request.GetGenresRequest
+import org.jellyfin.sdk.api.client.ApiClient
+import com.github.damontecres.wholphin.util.GetGenresRequestHandler
 import timber.log.Timber
 import java.util.UUID
 
@@ -65,6 +89,7 @@ class LibraryHubViewModel
     @AssistedInject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val api: ApiClient,
         private val serverRepository: ServerRepository,
         private val navDrawerService: NavDrawerService,
         private val homeSettingsService: HomeSettingsService,
@@ -123,6 +148,7 @@ class LibraryHubViewModel
                             refreshState = LoadingState.Loading,
                         )
                     }
+                    loadGenres(library.collectionType)
 
                     val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
                     val semaphore = Semaphore(4)
@@ -193,6 +219,36 @@ class LibraryHubViewModel
                 HomeRowLoadingState.Error(EmptyStringProvider, exception = ex)
             }
 
+        private fun loadGenres(collectionType: CollectionType) {
+            viewModelScope.launchIO {
+                try {
+                    val genres =
+                        GetGenresRequestHandler
+                            .execute(
+                                api,
+                                GetGenresRequest(
+                                    userId = serverRepository.currentUser?.id,
+                                    parentId = destination.itemId,
+                                    fields = SlimItemFields,
+                                    includeItemTypes = collectionType.baseItemKinds,
+                                ),
+                            ).content.items
+                            .map { LibraryHubGenre(it.id, it.name ?: "") }
+                    _state.update { it.copy(genres = genres) }
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error fetching hub genres")
+                }
+            }
+        }
+
+        fun activateGenre(genre: LibraryHubGenre) {
+            _state.update { it.withActiveGenre(genre) }
+        }
+
+        fun restoreHome() {
+            _state.update { it.withActiveGenre(null) }
+        }
+
         fun updatePosition(position: RowColumn) {
             _state.update { it.copy(position = position) }
         }
@@ -252,12 +308,22 @@ data class LibraryHubState(
     val activeRows: List<HomeRowLoadingState> = emptyList(),
     val firstAvailable: BaseItem? = null,
     val focusedItem: BaseItem? = null,
+    val genres: List<LibraryHubGenre> = emptyList(),
+    val activeGenre: LibraryHubGenre? = null,
     val position: RowColumn = RowColumn(-1, -1),
     val loadingState: LoadingState = LoadingState.Pending,
     val refreshState: LoadingState = LoadingState.Pending,
 ) {
     val spotlight: BaseItem? get() = focusedItem ?: firstAvailable
 }
+
+data class LibraryHubGenre(
+    val id: UUID,
+    val name: String,
+)
+
+internal fun LibraryHubState.withActiveGenre(genre: LibraryHubGenre?): LibraryHubState =
+    copy(activeGenre = genre, focusedItem = null)
 
 @Composable
 fun LibraryHub(
@@ -273,46 +339,127 @@ fun LibraryHub(
     val firstMediaFocusRequester = remember { FocusRequester() }
     val contextMenu = rememberContextMenu(preferences, viewModel)
     val loadingState = state.loadingState
+    val selectorTabs =
+        remember(state.genres) {
+            listOf(TabDetails(StringStringProvider("Home"))) +
+                state.genres.map { TabDetails(StringStringProvider(it.name)) }
+        }
+    val selectedTabIndex =
+        state.activeGenre?.let { genre -> state.genres.indexOfFirst { it.id == genre.id } + 1 } ?: 0
+    val selectedTab = selectorTabs.getOrNull(selectedTabIndex) ?: selectorTabs.first()
+    val genreGridFocusRequester = remember { FocusRequester() }
+    var pendingSelectorFocus by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(pendingSelectorFocus) {
+        pendingSelectorFocus?.let { index ->
+            withFrameNanos { }
+            selectorTabs.getOrNull(index)?.tabFocusRequester?.tryRequestFocus()
+            pendingSelectorFocus = null
+        }
+    }
+
+    BackHandler(enabled = state.activeGenre != null) {
+        pendingSelectorFocus = 0
+        viewModel.restoreHome()
+    }
 
     when {
         loadingState is LoadingState.Error && state.activeRows.isEmpty() -> ErrorMessage(loadingState, modifier)
         loadingState == LoadingState.Pending || loadingState == LoadingState.Loading ->
             LoadingPage(modifier, focusEnabled = LocalContentTakeFocus.current)
-        else -> HomePageContent(
-            homeRows = state.activeRows,
-            position = state.position,
-            onFocusPosition = viewModel::updatePosition,
-            onClickItem = { position, item ->
-                viewModel.updatePosition(position)
-                if (preferences.appPreferences.homePagePreferences.clickToPlay &&
-                    state.activeRows.getOrNull(position.row).isContinueWatchingNextUp
-                ) {
-                    viewModel.navigateTo(Destination.Playback(item))
-                } else {
-                    viewModel.navigateTo(item.destination())
-                }
-            },
-            onLongClickItem = { position, item ->
-                viewModel.updatePosition(position)
-                contextMenu.showContextMenu(position.column, item)
-            },
-            onClickPlay = { _, item -> viewModel.navigateTo(Destination.Playback(item)) },
-            showClock = preferences.appPreferences.interfacePreferences.showClock,
-            onUpdateBackdrop = viewModel::updateBackdrop,
-            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-            showViewMore = false,
-            loadingState = state.refreshState,
-            firstMediaFocusRequester = firstMediaFocusRequester,
-            onFocusedItem = viewModel::updateFocusedItem,
-            headerComposable = {
+        else ->
+            Column(modifier = modifier.fillMaxSize()) {
                 HomePageHeader(
                     item = state.spotlight,
                     showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                     modifier = HeaderUtils.modifier,
                 )
-            },
-            modifier = modifier,
-        )
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    tabs = selectorTabs,
+                    onClick = { index ->
+                        pendingSelectorFocus = index
+                        state.genres.getOrNull(index - 1)?.let(viewModel::activateGenre) ?: viewModel.restoreHome()
+                    },
+                    modifier =
+                        Modifier.focusProperties {
+                            down =
+                                if (state.activeGenre != null) {
+                                    genreGridFocusRequester
+                                } else {
+                                    firstMediaFocusRequester
+                                }
+                        },
+                )
+                state.activeGenre?.let { genre ->
+                    state.library?.let { library ->
+                        val genreDestination =
+                            createGenreDestination(
+                                genreId = genre.id,
+                                genreName = genre.name,
+                                parentId = library.itemId,
+                                parentName = library.name,
+                                includeItemTypes = library.collectionType.baseItemKinds,
+                                collectionType = library.collectionType,
+                            )
+                        key(genre.id) {
+                            CompositionLocalProvider(LocalContentTakeFocus provides false) {
+                                CollectionFolderView(
+                                preferences = preferences,
+                                itemId = library.itemId,
+                                initialFilter = genreDestination.filter,
+                                recursive = genreDestination.recursive,
+                                onClickItem = { _, item -> viewModel.navigateTo(item.destination()) },
+                                sortOptions =
+                                    if (library.collectionType == CollectionType.TVSHOWS) {
+                                        SeriesSortOptions
+                                    } else {
+                                        MovieSortOptions
+                                    },
+                                playEnabled = library.collectionType == CollectionType.MOVIES,
+                                defaultViewOptions = ViewOptionsPoster,
+                                viewModelKey = "${library.itemId}_genres_${genre.id}",
+                                showTitle = false,
+                                focusRequesterOnEmpty = selectedTab.tabFocusRequester,
+                                gridFocusRequester = genreGridFocusRequester,
+                                focusRequesterOnFirstRowUp = selectedTab.tabFocusRequester,
+                                cancelLoadsOnDispose = true,
+                                onFocusedItem = viewModel::updateFocusedItem,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+                    }
+                } ?: HomePageContent(
+                    homeRows = state.activeRows,
+                    position = state.position,
+                    onFocusPosition = viewModel::updatePosition,
+                    onClickItem = { position, item ->
+                        viewModel.updatePosition(position)
+                        if (preferences.appPreferences.homePagePreferences.clickToPlay &&
+                            state.activeRows.getOrNull(position.row).isContinueWatchingNextUp
+                        ) {
+                            viewModel.navigateTo(Destination.Playback(item))
+                        } else {
+                            viewModel.navigateTo(item.destination())
+                        }
+                    },
+                    onLongClickItem = { position, item ->
+                        viewModel.updatePosition(position)
+                        contextMenu.showContextMenu(position.column, item)
+                    },
+                    onClickPlay = { _, item -> viewModel.navigateTo(Destination.Playback(item)) },
+                    showClock = preferences.appPreferences.interfacePreferences.showClock,
+                    onUpdateBackdrop = viewModel::updateBackdrop,
+                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                    showViewMore = false,
+                    loadingState = state.refreshState,
+                    firstMediaFocusRequester = firstMediaFocusRequester,
+                    onFocusedItem = viewModel::updateFocusedItem,
+                    headerComposable = {},
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
     }
     contextMenu.Compose()
 }

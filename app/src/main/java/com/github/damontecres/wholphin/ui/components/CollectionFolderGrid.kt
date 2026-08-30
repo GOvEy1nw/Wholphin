@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -67,6 +69,8 @@ fun CollectionFolderGrid(
     gridFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
+    onFocusedItem: (BaseItem?) -> Unit = {},
+    focusRequesterOnFirstRowUp: FocusRequester? = null,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -108,7 +112,15 @@ fun CollectionFolderGrid(
                         imageType = viewOptions.imageType,
                         showTitle = viewOptions.showTitles,
                         fillWidth = widthPx,
-                        modifier = mod,
+                        modifier =
+                            mod
+                                .focusProperties {
+                                    if (index < viewOptions.columns && focusRequesterOnFirstRowUp != null) {
+                                        up = focusRequesterOnFirstRowUp
+                                    }
+                                }.onFocusChanged {
+                                if (it.isFocused) onFocusedItem(item)
+                            },
                     )
                 },
                 columns = viewOptions.columns,
