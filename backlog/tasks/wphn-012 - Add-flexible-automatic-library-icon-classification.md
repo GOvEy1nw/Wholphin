@@ -1,9 +1,11 @@
 ---
 id: wphn-012
 title: Add flexible automatic library icon classification
-status: Ready
-assignee: []
-created_date: "2026-08-29"
+status: Human Review
+assignee:
+  - '@codex'
+created_date: '2026-08-29'
+updated_date: '2026-08-30 19:26'
 labels:
   - android
   - navigation
@@ -15,6 +17,7 @@ priority: medium
 
 ## Description
 
+<!-- SECTION:DESCRIPTION:BEGIN -->
 Resolve a sensible navigation icon from a library’s normalized name before falling back to Jellyfin collection type. Version one remains fully automatic.
 
 ## Goal
@@ -70,15 +73,35 @@ Support the agreed family library vocabulary without manual configuration or bri
 7. Keep rendering inside the existing NavItem path. Do not introduce an icon registry, plugin lookup, database field, or new dependency.
 8. Add table-driven tests covering all requested names, punctuation/case/plural variants, ambiguous names, and type fallback.
 9. Document future plugin override as out of scope; do not reserve wire fields in the version-one managed contract.
+<!-- SECTION:DESCRIPTION:END -->
 
-## Acceptance criteria
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 Every requested example classifies correctly.
+- [x] #2 Matching is case/punctuation/plural tolerant.
+- [x] #3 `4K TV` cannot be misclassified as generic Movies and `3D Movies` cannot fall through to unknown.
+- [x] #4 Unmatched libraries retain current type-based behaviour.
+- [x] #5 Resolver is pure and tested.
+- [x] #6 No icon pack/dependency or manual override setting is added.
+<!-- AC:END -->
 
-- [ ] Every requested example classifies correctly.
-- [ ] Matching is case/punctuation/plural tolerant.
-- [ ] `4K TV` cannot be misclassified as generic Movies and `3D Movies` cannot fall through to unknown.
-- [ ] Unmatched libraries retain current type-based behaviour.
-- [ ] Resolver is pure and tested.
-- [ ] No icon pack/dependency or manual override setting is added.
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add one pure name-first icon resolver that preserves the existing CollectionType fallback mapping. 2. Route existing NavItem rendering through the resolver without changing drawer focus/navigation. 3. Add one table-driven JVM test for the requested vocabulary, normalization, precedence, and fallback. 4. Run the focused resolver test and :app:compileDefaultDebugKotlin, inspect the diff, review, then finalize WPHN-012.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented a pure normalized-name icon resolver using the existing bundled glyph resources and routed the existing NavItem renderer through it. Files: app/src/main/java/com/github/damontecres/wholphin/util/LibraryIconResolver.kt, app/src/main/java/com/github/damontecres/wholphin/ui/nav/NavDrawer.kt, app/src/test/java/com/github/damontecres/wholphin/util/LibraryIconResolverTest.kt. Verification: LibraryIconResolverTest XML reports 2 tests, 0 failures; :app:assembleDefaultDebug completed successfully; :app:testDefaultDebugUnitTest ran 362 tests with 358 passing and only the four pre-existing ServerRepositoryTest FileStorage.kt:114 IOException failures. git diff --check passed. Independent review verdict: ship. Deviations: none; plugin icon override, badges, artwork, settings, registry, and dependencies remain out of scope.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added automatic name-first library icon classification with normalized token aliases and preserved CollectionType fallbacks, verified by passing resolver tests, successful default-debug assembly, and independent ship review.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Verification
 

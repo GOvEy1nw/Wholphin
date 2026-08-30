@@ -94,6 +94,7 @@ import com.github.damontecres.wholphin.ui.spacedByWithFooter
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.util.resolveLibraryIcon
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -758,7 +759,6 @@ fun NavigationDrawerScope.NavItem(
     containerColor: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
-    val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
     val icon =
         remember(library) {
             when (library) {
@@ -775,19 +775,11 @@ fun NavigationDrawerScope.NavItem(
                 }
 
                 is ServerNavDrawerItem -> {
-                    when (library.type) {
-                        CollectionType.MOVIES -> R.string.fa_film
-                        CollectionType.TVSHOWS -> R.string.fa_tv
-                        CollectionType.HOMEVIDEOS -> R.string.fa_video
-                        CollectionType.LIVETV -> R.drawable.gf_dvr
-                        CollectionType.MUSIC -> R.string.fa_music
-                        CollectionType.BOXSETS -> R.string.fa_open_folder
-                        CollectionType.PLAYLISTS -> R.string.fa_list_ul
-                        else -> R.string.fa_film
-                    }
+                    resolveLibraryIcon(library.name, library.type)
                 }
             }
         }
+    val useFont = icon != R.drawable.gf_dvr
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
         modifier = modifier,
