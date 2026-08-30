@@ -1,11 +1,11 @@
 ---
 id: wphn-009
 title: Make initial and changed season episode targeting deterministic
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-30 14:24'
+updated_date: '2026-08-30 15:21'
 labels:
   - android
   - series
@@ -88,6 +88,8 @@ Produce one resolved `(season, episode)` target and a race-safe season-loading p
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented deterministic series targeting in SeriesViewModel and atomic selection consumption in SeriesOverview and SeriesOverviewContent. Files: SeriesViewModel.kt, SeriesOverview.kt, SeriesOverviewContent.kt, and SeriesTargetSelectionTest.kt. Initial precedence is explicit SeasonEpisodeIds, series-specific Next Up with limit 1, first season with unplayedItemCount, then first season. Selected and manual seasons use first played-not-true episode or index 0. Existing paged ID and number lookup remains. Episode, extras, refresh, and chosen-stream commits are guarded by current generation, season, and episode; cancellation is excluded from error logging. Verification: focused SeriesTargetSelectionTest BUILD SUCCESSFUL after final corrections and executed compileDefaultDebugKotlin; focused TestFindIndexByNumberOrId BUILD SUCCESSFUL and executed compileDefaultDebugKotlin; git diff --check passed. Independent final review verdict: ship with no findings. Deviations: no separate compile-only rerun because each focused Gradle run executed compileDefaultDebugKotlin; no device or UI run because WPHN-009 is ViewModel and data logic and WPHN-010 owns season interaction timing. The initial combined Gradle invocation misapplied the test filter and hit the known problems-report access issue; separate approved runs recovered conclusive results. Existing unrelated compiler warnings were not repaired.
+
+Human accepted on 2026-08-30 after :app:installDefaultDebug built Wholphin-default-debug-1.0.7-20-gc7e18b3e-51.apk and installed it successfully on emulator-5554 (AOSP TV); Gradle reported BUILD SUCCESSFUL and Installed on 1 device.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
