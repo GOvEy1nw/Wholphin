@@ -117,7 +117,8 @@ class SeriesViewModel
         private val _state = MutableStateFlow(SeriesState())
         val state: StateFlow<SeriesState> = _state
 
-        val position = MutableStateFlow(SeriesOverviewPosition(0, 0))
+        private var episodeLoadJob: Job? = null
+        private var extrasLoadJob: Job? = null
 
         init {
             viewModelScope.launchIO {
@@ -136,34 +137,37 @@ class SeriesViewModel
                 backdropService.submit(series)
 
                 val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
-
-                val episodeListDeferred =
-                    if (seriesPageType == SeriesPageType.OVERVIEW) {
+                val nextUpDeferred =
+                    if (seriesPageType == SeriesPageType.OVERVIEW && seasonEpisodeIds == null) {
                         viewModelScope.async(WholphinDispatchers.IO) {
-                            if (seasonEpisodeIds != null) {
-                                loadEpisodesInternal(
-                                    seasonEpisodeIds.seasonId,
-                                    seasonEpisodeIds.episodeId,
-                                    seasonEpisodeIds.episodeNumber,
-                                )
-                            } else {
-                                seasonsDeferred.await().firstOrNull()?.let {
-                                    loadEpisodesInternal(
-                                        it.id,
-                                        null,
-                                        null,
-                                    )
-                                } ?: EpisodeList.Error(message = "Could not determine season")
-                            }
+                            val result by api.tvShowsApi.getNextUp(seriesId = seriesId, limit = 1)
+                            result.items.firstOrNull()?.let(::BaseItem)
                         }
                     } else {
-                        CompletableDeferred(value = EpisodeList.Loading)
+                        CompletableDeferred(null)
                     }
-                val (seasons, episodes) =
+                val initial =
                     try {
                         val seasons = seasonsDeferred.await()
-                        val episodes = episodeListDeferred.await()
-                        seasons to episodes
+                        if (seriesPageType == SeriesPageType.OVERVIEW) {
+                            val resolvedTarget =
+                                resolveInitialSeasonTarget(seasonEpisodeIds, nextUpDeferred.await(), seasons)
+                            val seasonIndex = resolvedTarget?.let { findSeasonIndex(seasons, it) } ?: 0
+                            val selectedSeason = seasonAt(seasons, seasonIndex)
+                            val target =
+                                resolvedTarget?.takeIf { it.seasonId == selectedSeason?.id }
+                                    ?: selectedSeason?.let {
+                                        InitialSeasonTarget(it.id, it.indexNumber, null, null)
+                                    }
+                            val episodes =
+                                target?.let {
+                                    loadEpisodesInternal(it.seasonId, it.episodeId, it.episodeNumber)
+                                } ?: EpisodeList.Error(message = "Could not determine season")
+                            val extras = target?.let { getSeasonExtras(it.seasonId) }.orEmpty()
+                            InitialSeriesLoad(seasons, target, seasonIndex, episodes, extras)
+                        } else {
+                            InitialSeriesLoad(seasons, null, 0, EpisodeList.Loading, emptyList())
+                        }
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -172,40 +176,19 @@ class SeriesViewModel
                         return@launchIO
                     }
                 Timber.v("Done")
-
-                if (seriesPageType == SeriesPageType.OVERVIEW && seasonEpisodeIds != null) {
-                    viewModelScope.launchIO {
-                        val index =
-                            (seasons as? ApiRequestPager<*>)?.let {
-                                findIndexByNumberOrIdFast(
-                                    seasonEpisodeIds.seasonNumber,
-                                    seasonEpisodeIds.seasonId,
-                                    it,
-                                    null,
-                                )
-                            } ?: 0
-                        Timber.v("Got initial season index: $index")
-                        position.update {
-                            it.copy(seasonTabIndex = index.coerceAtLeast(0))
-                        }
-                    }
-                    viewModelScope.launchIO {
-                        val extras = extrasService.getExtras(seasonEpisodeIds.seasonId)
-                        _state.update { it.copy(extras = extras) }
-                    }
-                }
                 val remoteTrailers = trailerService.getRemoteTrailers(series)
-                this@SeriesViewModel.position.update {
-                    it.copy(
-                        episodeRowIndex =
-                            (episodes as? EpisodeList.Success)?.initialEpisodeIndex ?: 0,
-                    )
-                }
                 _state.update {
                     it.copy(
                         series = DataLoadingState.Success(series),
-                        seasons = seasons,
-                        episodes = episodes,
+                        seasons = initial.seasons,
+                        episodes = initial.episodes,
+                        extras = initial.extras,
+                        position =
+                            SeriesOverviewPosition(
+                                initial.seasonIndex.coerceAtLeast(0),
+                                initial.target?.seasonId,
+                                (initial.episodes as? EpisodeList.Success)?.initialEpisodeIndex ?: 0,
+                            ),
                         trailers = remoteTrailers,
                     )
                 }
@@ -301,6 +284,24 @@ class SeriesViewModel
             themeSongPlayer.stop()
         }
 
+        fun selectSeason(seasonTabIndex: Int) {
+            val season = state.value.seasons.getOrNull(seasonTabIndex) ?: return
+            loadSeasonEpisodes(season.id, seasonTabIndex)
+        }
+
+        fun selectEpisode(episodeRowIndex: Int) {
+            _state.update {
+                if (it.position.episodeRowIndex == episodeRowIndex) {
+                    it
+                } else {
+                    it.copy(
+                        position = it.position.copy(episodeRowIndex = episodeRowIndex),
+                        chosenStreams = null,
+                    )
+                }
+            }
+        }
+
         private fun getSeasons(
             series: BaseItem,
             seasonNum: Int?,
@@ -314,7 +315,7 @@ class SeriesViewModel
                         includeItemTypes = listOf(BaseItemKind.SEASON),
                         sortBy = listOf(ItemSortBy.INDEX_NUMBER),
                         sortOrder = listOf(SortOrder.ASCENDING),
-                        enableUserData = seriesPageType == SeriesPageType.DETAILS,
+                        enableUserData = true,
                         fields =
                             if (seriesPageType == SeriesPageType.DETAILS) {
                                 listOf(
@@ -336,6 +337,24 @@ class SeriesViewModel
                         pageSize = 20,
                     ).init(seasonNum ?: 0)
                 pager
+            }
+
+        private suspend fun findSeasonIndex(
+            seasons: List<BaseItem?>,
+            target: InitialSeasonTarget,
+        ): Int =
+            ((seasons as? ApiRequestPager<*>)?.let {
+                findIndexByNumberOrIdFast(target.seasonNumber, target.seasonId, it, null)
+            } ?: seasons.indexOfFirst { it?.id == target.seasonId }).coerceAtLeast(0)
+
+        private suspend fun seasonAt(
+            seasons: List<BaseItem?>,
+            index: Int,
+        ): BaseItem? =
+            if (index !in seasons.indices) {
+                null
+            } else {
+                (seasons as? BlockingList<BaseItem?>)?.getBlocking(index) ?: seasons.getOrNull(index)
             }
 
         private suspend fun loadEpisodesInternal(
@@ -371,42 +390,77 @@ class SeriesViewModel
                     findIndexByNumberOrIdFast(episodeNumber, episodeId, pager, seasonId)
                         .coerceAtLeast(0)
                 } else {
-                    // Force the first page to be fetched
-                    if (pager.isNotEmpty()) {
-                        pager.getBlocking(0)
-                    }
-                    0
+                    firstUnwatchedEpisodeIndex(pager)
                 }
             Timber.v("Loaded ${pager.size} episodes for season $seasonId, initialIndex=$initialIndex")
             return EpisodeList.Success(seasonId, pager, initialIndex)
         }
 
-        fun loadEpisodes(seasonId: UUID) {
-            val currentEpisodes = (state.value.episodes as? EpisodeList.Success)
-            if (currentEpisodes == null || currentEpisodes.seasonId != seasonId) {
-                _state.update {
-                    it.copy(
-                        peopleInEpisode = PeopleInItem(),
-                        episodes = EpisodeList.Loading,
-                        extras = emptyList(),
-                    )
-                }
+        private fun loadSeasonEpisodes(
+            seasonId: UUID,
+            seasonTabIndex: Int,
+        ) {
+            episodeLoadJob?.cancel()
+            extrasLoadJob?.cancel()
+            var generation = 0L
+            _state.update {
+                generation = it.seasonLoadGeneration + 1
+                it.copy(
+                    position = SeriesOverviewPosition(seasonTabIndex, seasonId, 0),
+                    seasonLoadGeneration = generation,
+                    peopleInEpisode = PeopleInItem(),
+                    episodes = EpisodeList.Loading,
+                    extras = emptyList(),
+                    chosenStreams = null,
+                )
             }
-            viewModelScope.launchIO(ExceptionHandler(true)) {
+            episodeLoadJob = viewModelScope.launchIO {
                 val episodes =
                     try {
                         loadEpisodesInternal(seasonId, null, null)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Timber.e(e, "Error loading episodes for $seriesId for season $seasonId")
                         EpisodeList.Error(e)
                     }
-                _state.update { it.copy(episodes = episodes) }
+                _state.update {
+                    if (canCommitSeasonLoad(it.seasonLoadGeneration, generation, it.position.seasonId, seasonId)) {
+                        it.copy(
+                            episodes = episodes,
+                            position =
+                                it.position.copy(
+                                    episodeRowIndex =
+                                        (episodes as? EpisodeList.Success)?.initialEpisodeIndex ?: 0,
+                                ),
+                            chosenStreams = null,
+                        )
+                    } else {
+                        it
+                    }
+                }
             }
-            viewModelScope.launchIO {
-                val extras = extrasService.getExtras(seasonId)
-                _state.update { it.copy(extras = extras) }
+            extrasLoadJob = viewModelScope.launchIO {
+                val extras = getSeasonExtras(seasonId)
+                _state.update {
+                    if (canCommitSeasonLoad(it.seasonLoadGeneration, generation, it.position.seasonId, seasonId)) {
+                        it.copy(extras = extras)
+                    } else {
+                        it
+                    }
+                }
             }
         }
+
+        private suspend fun getSeasonExtras(seasonId: UUID): List<ExtrasItem> =
+            try {
+                extrasService.getExtras(seasonId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "Error loading extras for $seriesId for season $seasonId")
+                emptyList()
+            }
 
         fun setWatched(
             itemId: UUID,
@@ -476,8 +530,15 @@ class SeriesViewModel
         ) = viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
             val eps = state.value.episodes
             if (eps is EpisodeList.Success) {
+                val generation = state.value.seasonLoadGeneration
                 eps.episodes.refreshItem(listIndex, itemId)
-                _state.update { it.copy(episodes = eps) }
+                _state.update {
+                    if (canCommitSeasonLoad(it.seasonLoadGeneration, generation, it.position.seasonId, eps.seasonId)) {
+                        it.copy(episodes = eps)
+                    } else {
+                        it
+                    }
+                }
             }
             // Kind of hack to ensure the backdrop is reloaded if needed
             state.value.series.successValue
@@ -531,7 +592,13 @@ class SeriesViewModel
                             item,
                             userPreferencesService.getCurrent(),
                         )
-                    _state.update { it.copy(chosenStreams = result) }
+                    _state.update {
+                        if (it.isSelectedEpisode(itemId)) {
+                            it.copy(chosenStreams = result)
+                        } else {
+                            it
+                        }
+                    }
                 }
         }
 
@@ -547,7 +614,13 @@ class SeriesViewModel
                     result?.let {
                         itemPlaybackRepository.getChosenItemFromPlayback(item, result, plc, prefs)
                     }
-                _state.update { it.copy(chosenStreams = chosen) }
+                _state.update {
+                    if (it.isSelectedEpisode(item.id)) {
+                        it.copy(chosenStreams = chosen)
+                    } else {
+                        it
+                    }
+                }
             }
         }
 
@@ -571,7 +644,13 @@ class SeriesViewModel
                     result?.let {
                         itemPlaybackRepository.getChosenItemFromPlayback(item, result, plc, prefs)
                     }
-                _state.update { it.copy(chosenStreams = chosen) }
+                _state.update {
+                    if (it.isSelectedEpisode(item.id)) {
+                        it.copy(chosenStreams = chosen)
+                    } else {
+                        it
+                    }
+                }
             }
         }
 
@@ -634,7 +713,7 @@ class SeriesViewModel
                             }
                         }
                     } else {
-                        position.value.let { (_, episodeIndex) ->
+                        state.value.position.episodeRowIndex.let { episodeIndex ->
                             val eps = state.value.episodes as? EpisodeList.Success
                             if (eps != null) {
                                 val pager = eps.episodes
@@ -653,9 +732,10 @@ class SeriesViewModel
                                                         pager,
                                                         episodeIndex - 1,
                                                     ),
+                                                position = it.position.copy(episodeRowIndex = episodeIndex - 1),
+                                                chosenStreams = null,
                                             )
                                         }
-                                        position.update { it.copy(episodeRowIndex = episodeIndex - 1) }
                                     } else {
                                         _state.update {
                                             it.copy(
@@ -830,6 +910,8 @@ data class SeriesState(
     val series: DataLoadingState<BaseItem> = DataLoadingState.Pending,
     val seasons: List<BaseItem?> = emptyList(),
     val episodes: EpisodeList = EpisodeList.Loading,
+    val position: SeriesOverviewPosition = SeriesOverviewPosition(0, null, 0),
+    val seasonLoadGeneration: Long = 0,
     val trailers: List<Trailer> = emptyList(),
     val extras: List<ExtrasItem> = emptyList(),
     val people: List<Person> = emptyList(),
@@ -839,4 +921,97 @@ data class SeriesState(
     val discovered: List<DiscoverItem> = emptyList(),
     val discoverSeries: DiscoverItem? = null,
     val chosenStreams: ChosenStreams? = null,
+)
+
+private fun SeriesState.isSelectedEpisode(itemId: UUID): Boolean {
+    val currentEpisodes = episodes as? EpisodeList.Success ?: return false
+    return canCommitChosenStreams(
+        position.seasonId,
+        currentEpisodes.seasonId,
+        currentEpisodes.episodes.getOrNull(position.episodeRowIndex)?.id,
+        itemId,
+    )
+}
+
+internal data class InitialSeasonTarget(
+    val seasonId: UUID,
+    val seasonNumber: Int?,
+    val episodeId: UUID?,
+    val episodeNumber: Int?,
+)
+
+internal data class SeasonTargetCandidate(
+    val target: InitialSeasonTarget,
+    val unplayedItemCount: Int?,
+)
+
+internal fun selectInitialSeasonTarget(
+    explicit: InitialSeasonTarget?,
+    nextUp: InitialSeasonTarget?,
+    seasons: List<SeasonTargetCandidate>,
+): InitialSeasonTarget? =
+    explicit ?: nextUp ?: seasons.firstOrNull { (it.unplayedItemCount ?: 0) > 0 }?.target ?: seasons.firstOrNull()?.target
+
+internal fun canCommitSeasonLoad(
+    currentGeneration: Long,
+    responseGeneration: Long,
+    currentSeasonId: UUID?,
+    responseSeasonId: UUID,
+): Boolean = currentGeneration == responseGeneration && currentSeasonId == responseSeasonId
+
+internal fun canCommitChosenStreams(
+    selectedSeasonId: UUID?,
+    responseSeasonId: UUID,
+    selectedEpisodeId: UUID?,
+    responseEpisodeId: UUID,
+): Boolean = selectedSeasonId == responseSeasonId && selectedEpisodeId == responseEpisodeId
+
+private suspend fun resolveInitialSeasonTarget(
+    explicit: SeasonEpisodeIds?,
+    nextUp: BaseItem?,
+    seasons: List<BaseItem?>,
+): InitialSeasonTarget? {
+    val explicitTarget = explicit?.let { InitialSeasonTarget(it.seasonId, it.seasonNumber, it.episodeId, it.episodeNumber) }
+    val nextUpTarget =
+        nextUp?.data?.seasonId?.let {
+            InitialSeasonTarget(it, nextUp.data.parentIndexNumber, nextUp.id, nextUp.indexNumber)
+        }
+    return selectInitialSeasonTarget(
+        explicitTarget,
+        nextUpTarget,
+        if (explicitTarget == null && nextUpTarget == null) seasonTargetCandidates(seasons) else emptyList(),
+    )
+}
+
+private suspend fun seasonTargetCandidates(seasons: List<BaseItem?>): List<SeasonTargetCandidate> {
+    val blockingSeasons = seasons as? BlockingList<BaseItem?>
+    if (blockingSeasons == null) {
+        return seasons.mapNotNull(::seasonTargetCandidate)
+    }
+    val first = if (blockingSeasons.isEmpty()) null else blockingSeasons.getBlocking(0)
+    val firstUnplayed =
+        blockingSeasons
+            .indexOfBlocking { (it?.data?.userData?.unplayedItemCount ?: 0) > 0 }
+            .takeIf { it >= 0 }
+            ?.let { blockingSeasons.getBlocking(it) }
+    return listOfNotNull(firstUnplayed, first).mapNotNull(::seasonTargetCandidate)
+}
+
+private fun seasonTargetCandidate(season: BaseItem?): SeasonTargetCandidate? =
+    season?.let {
+        SeasonTargetCandidate(
+            InitialSeasonTarget(it.id, it.indexNumber, null, null),
+            it.data.userData?.unplayedItemCount,
+        )
+    }
+
+internal suspend fun firstUnwatchedEpisodeIndex(episodes: BlockingList<BaseItem?>): Int =
+    episodes.indexOfBlocking { it?.data?.userData?.played != true }.coerceAtLeast(0)
+
+private data class InitialSeriesLoad(
+    val seasons: List<BaseItem?>,
+    val target: InitialSeasonTarget?,
+    val seasonIndex: Int,
+    val episodes: EpisodeList,
+    val extras: List<ExtrasItem>,
 )

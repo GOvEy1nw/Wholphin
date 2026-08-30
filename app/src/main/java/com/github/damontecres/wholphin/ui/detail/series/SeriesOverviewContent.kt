@@ -26,12 +26,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -105,7 +103,7 @@ fun SeriesOverviewContent(
 ) {
     val scope = rememberCoroutineScope()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
-    var selectedTabIndex by rememberSaveable(position.seasonTabIndex) { mutableIntStateOf(position.seasonTabIndex) }
+    val selectedTabIndex = position.seasonTabIndex
     LaunchedEffect(selectedTabIndex) {
         logTab("series_overview", selectedTabIndex)
     }
@@ -177,7 +175,6 @@ fun SeriesOverviewContent(
                     onClick =
                         remember {
                             {
-                                selectedTabIndex = it
                                 currentOnChangeSeason(it)
                                 requestFocusAfterSeason = true
                             }

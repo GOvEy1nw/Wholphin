@@ -32,7 +32,6 @@ import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.util.DataLoadingState
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -60,6 +59,7 @@ data class SeasonEpisodeIds(
 @Serializable
 data class SeriesOverviewPosition(
     val seasonTabIndex: Int,
+    val seasonId: UUID?,
     val episodeRowIndex: Int,
 )
 
@@ -87,15 +87,8 @@ fun SeriesOverview(
     val episodeList =
         remember(state.episodes) { (state.episodes as? EpisodeList.Success)?.episodes }
 
-    val position by viewModel.position.collectAsState(SeriesOverviewPosition(0, 0))
+    val position = state.position
     val currentPosition by rememberUpdatedState(position)
-    LaunchedEffect(Unit) {
-        if (state.seasons.isNotEmpty()) {
-            state.seasons.getOrNull(position.seasonTabIndex)?.let {
-                viewModel.loadEpisodes(it.id)
-            }
-        }
-    }
 
     var overviewDialog by remember { mutableStateOf<ItemDetailsDialogInfo?>(null) }
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
@@ -209,18 +202,11 @@ fun SeriesOverview(
                 extrasRowFocusRequester = extrasRowFocusRequester,
                 onChangeSeason = { index ->
                     if (index != position.seasonTabIndex) {
-                        state.seasons.getOrNull(index)?.let { season ->
-                            viewModel.loadEpisodes(season.id)
-                            viewModel.position.update {
-                                SeriesOverviewPosition(index, 0)
-                            }
-                        }
+                        viewModel.selectSeason(index)
                     }
                 },
                 onFocusEpisode = { episodeIndex ->
-                    viewModel.position.update {
-                        it.copy(episodeRowIndex = episodeIndex)
-                    }
+                    viewModel.selectEpisode(episodeIndex)
                 },
                 onClick = {
                     rowFocused = EPISODE_ROW
