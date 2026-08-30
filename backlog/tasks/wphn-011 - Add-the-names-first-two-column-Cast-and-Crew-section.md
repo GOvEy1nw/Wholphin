@@ -1,11 +1,11 @@
 ---
 id: wphn-011
 title: Add the names-first two-column Cast and Crew section
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-30 18:49'
+updated_date: '2026-08-30 19:08'
 labels:
   - android
   - people
@@ -82,6 +82,16 @@ Verification: `gradlew :app:testDefaultDebugUnitTest --tests com.github.damontec
 
 Deviation: the original outer-container/OK/internal-mode acceptance was explicitly superseded during review by direct person focus, matching the prior person-row interaction model.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @user
+created: 2026-08-30 19:08
+---
+Accepted by the user; implementation approved for publication.
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 
