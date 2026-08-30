@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
@@ -53,18 +54,22 @@ fun TabRow(
     tabs: List<TabDetails>,
     onClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    onFocusedTabIndexChange: ((Int?) -> Unit)? = null,
+    onDown: ((Int) -> Unit)? = null,
 ) {
     val state = rememberLazyListState()
+    var rowHasFocus by remember { mutableStateOf(false) }
     LaunchedEffect(selectedTabIndex) {
-        if (selectedTabIndex in tabs.indices) {
+        if ((onFocusedTabIndexChange == null || !rowHasFocus) && selectedTabIndex in tabs.indices) {
             state.animateScrollToItem(selectedTabIndex, -(state.layoutInfo.viewportSize.width / 3.5).toInt())
         }
     }
-    var rowHasFocus by remember { mutableStateOf(false) }
 
     val currentSelectedTabIndex by rememberUpdatedState(selectedTabIndex)
 //    val currentFocusRequesters by rememberUpdatedState(focusRequesters)
     val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnFocusedTabIndexChange by rememberUpdatedState(onFocusedTabIndexChange)
+    val currentOnDown by rememberUpdatedState(onDown)
 
     LazyRow(
         state = state,
@@ -72,6 +77,9 @@ fun TabRow(
             modifier
                 .onFocusChanged {
                     rowHasFocus = it.hasFocus
+                    if (!it.hasFocus) {
+                        currentOnFocusedTabIndexChange?.invoke(null)
+                    }
                 }.focusGroup()
                 .focusProperties {
                     onEnter = {
@@ -106,7 +114,31 @@ fun TabRow(
                 rowActive = rowHasFocus,
                 interactionSource = interactionSource,
                 onClick = onTabClick,
-                modifier = Modifier.focusRequester(tab.tabFocusRequester),
+                modifier =
+                    Modifier
+                        .focusRequester(tab.tabFocusRequester)
+                        .then(
+                            if (currentOnFocusedTabIndexChange != null) {
+                                Modifier.handleDPadKeyEvents(
+                                    onLeft =
+                                        tabs.getOrNull(index - 1)?.let { previous ->
+                                            { previous.tabFocusRequester.tryRequestFocus() }
+                                        },
+                                    onRight =
+                                        tabs.getOrNull(index + 1)?.let { next ->
+                                            { next.tabFocusRequester.tryRequestFocus() }
+                                        },
+                                    onDown = currentOnDown?.let { { it(index) } },
+                                )
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                currentOnFocusedTabIndexChange?.invoke(index)
+                            }
+                        },
             )
         }
     }

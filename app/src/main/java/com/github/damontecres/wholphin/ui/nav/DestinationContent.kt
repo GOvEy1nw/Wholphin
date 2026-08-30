@@ -37,7 +37,6 @@ import com.github.damontecres.wholphin.ui.detail.music.AlbumDetailsPage
 import com.github.damontecres.wholphin.ui.detail.music.ArtistDetailsPage
 import com.github.damontecres.wholphin.ui.detail.music.NowPlayingPage
 import com.github.damontecres.wholphin.ui.detail.music.SongDetailsPage
-import com.github.damontecres.wholphin.ui.detail.series.SeriesDetails
 import com.github.damontecres.wholphin.ui.detail.series.SeriesOverview
 import com.github.damontecres.wholphin.ui.discover.DiscoverPage
 import com.github.damontecres.wholphin.ui.discover.DiscoverRequestGrid
@@ -148,10 +147,15 @@ fun DestinationContent(
         is Destination.MediaItem -> {
             when (destination.type) {
                 BaseItemKind.SERIES -> {
-                    SeriesDetails(
-                        preferences,
-                        destination,
-                        modifier,
+                    SeriesOverview(
+                        preferences = preferences,
+                        destination =
+                            Destination.SeriesOverview(
+                                itemId = destination.itemId,
+                                type = destination.type,
+                            ),
+                        initialSeasonEpisode = null,
+                        modifier = modifier,
                     )
                 }
 

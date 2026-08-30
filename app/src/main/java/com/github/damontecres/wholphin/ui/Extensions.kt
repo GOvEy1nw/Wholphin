@@ -114,12 +114,14 @@ fun Modifier.ifElse(
 ): Modifier = then(if (condition) ifTrueModifier.invoke() else ifFalseModifier.invoke())
 
 /**
- * Handles horizontal (Left & Right) D-Pad Keys and consumes the event(s) so that the focus doesn't
- * accidentally move to another element.
+ * Handles supplied D-Pad directions and consumes the event(s) so focus doesn't accidentally move
+ * to another element.
  * */
 fun Modifier.handleDPadKeyEvents(
     onLeft: (() -> Unit)? = null,
     onRight: (() -> Unit)? = null,
+    onUp: (() -> Unit)? = null,
+    onDown: (() -> Unit)? = null,
     onCenter: (() -> Unit)? = null,
     triggerOnAction: Int = KeyEvent.ACTION_UP,
 ) = onPreviewKeyEvent {
@@ -137,6 +139,20 @@ fun Modifier.handleDPadKeyEvents(
 
         KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_SYSTEM_NAVIGATION_RIGHT -> {
             onRight?.apply {
+                onActionUp(::invoke)
+                return@onPreviewKeyEvent true
+            }
+        }
+
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_SYSTEM_NAVIGATION_UP -> {
+            onUp?.apply {
+                onActionUp(::invoke)
+                return@onPreviewKeyEvent true
+            }
+        }
+
+        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_SYSTEM_NAVIGATION_DOWN -> {
+            onDown?.apply {
                 onActionUp(::invoke)
                 return@onPreviewKeyEvent true
             }

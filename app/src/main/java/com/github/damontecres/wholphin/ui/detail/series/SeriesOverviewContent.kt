@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,17 +59,28 @@ import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabRow
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
+import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.logTab
 import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
-import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.ui.util.rememberDelayedNestedScroll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.PersonKind
 import kotlin.time.Duration
+
+private const val SEASON_PREVIEW_DELAY_MS = 200L
+
+private sealed interface SeriesFocusTarget {
+    data class Season(val index: Int) : SeriesFocusTarget
+
+    data class Episode(val seasonIndex: Int) : SeriesFocusTarget
+
+    data object External : SeriesFocusTarget
+}
 
 @Composable
 fun SeriesOverviewContent(
@@ -80,6 +92,7 @@ fun SeriesOverviewContent(
     chosenStreams: ChosenStreams?,
     peopleInEpisode: List<Person>,
     position: SeriesOverviewPosition,
+    initialFocusEpisode: Boolean,
     firstItemFocusRequester: FocusRequester,
     episodeRowFocusRequester: FocusRequester,
     castCrewRowFocusRequester: FocusRequester,
@@ -94,6 +107,7 @@ fun SeriesOverviewContent(
     favoriteOnClick: () -> Unit,
     moreOnClick: () -> Unit,
     overviewOnClick: () -> Unit,
+    seriesOverviewOnClick: () -> Unit,
     personOnClick: (Person) -> Unit,
     canDelete: (BaseItem) -> Boolean,
     onConfirmDelete: (BaseItem) -> Unit,
@@ -107,17 +121,27 @@ fun SeriesOverviewContent(
     LaunchedEffect(selectedTabIndex) {
         logTab("series_overview", selectedTabIndex)
     }
-    val tabRowFocusRequester = remember { FocusRequester() }
-
     val focusedEpisode =
         (episodes as? EpisodeList.Success)?.episodes?.getOrNull(position.episodeRowIndex)
     var pageHasFocus by remember { mutableStateOf(false) }
     var cardRowHasFocus by remember { mutableStateOf(false) }
+    var episodeSpotlight by remember(initialFocusEpisode) { mutableStateOf(initialFocusEpisode) }
     val dimming by animateFloatAsState(if (pageHasFocus && !cardRowHasFocus) .4f else 1f)
 
     val scrollState = rememberScrollState()
     val scrollConnection = rememberDelayedNestedScroll()
-    var requestFocusAfterSeason by remember { mutableStateOf(false) }
+    var focusedSeasonIndex by remember { mutableStateOf<Int?>(null) }
+    var focusTarget by
+        remember(initialFocusEpisode) {
+            mutableStateOf<SeriesFocusTarget>(
+                if (initialFocusEpisode) {
+                    SeriesFocusTarget.Episode(position.seasonTabIndex)
+                } else {
+                    SeriesFocusTarget.Season(position.seasonTabIndex)
+                },
+            )
+        }
+    var focusRequestVersion by remember { mutableIntStateOf(0) }
 
     val seasonStr = stringResource(R.string.tv_season)
     val tabFocusRequesters = remember(seasons) { List(seasons.size) { FocusRequester() } }
@@ -137,6 +161,45 @@ fun SeriesOverviewContent(
         }
 
     val currentOnChangeSeason by rememberUpdatedState(onChangeSeason)
+    val currentSelectedTabIndex by rememberUpdatedState(selectedTabIndex)
+
+    val episodeFocusKey =
+        (episodes as? EpisodeList.Success)?.let {
+            if (it.seasonId == position.seasonId) {
+                it.seasonId to position.episodeRowIndex
+            } else {
+                null
+            }
+        }
+    val focusAvailabilityKey =
+        when (val target = focusTarget) {
+            is SeriesFocusTarget.Season -> selectedTabIndex
+            is SeriesFocusTarget.Episode ->
+                if (selectedTabIndex == target.seasonIndex) episodeFocusKey else null
+            SeriesFocusTarget.External -> null
+        }
+    LaunchedEffect(focusTarget, focusAvailabilityKey, focusRequestVersion) {
+        when (val target = focusTarget) {
+            is SeriesFocusTarget.Season ->
+                tabFocusRequesters.getOrNull(target.index)?.tryRequestFocus()
+            is SeriesFocusTarget.Episode ->
+                if (focusAvailabilityKey != null) {
+                    episodeRowFocusRequester.tryRequestFocus()
+                }
+            SeriesFocusTarget.External -> Unit
+        }
+    }
+
+    LaunchedEffect(focusedSeasonIndex) {
+        val focusedIndex = focusedSeasonIndex ?: return@LaunchedEffect
+        if (focusedIndex != currentSelectedTabIndex) {
+            delay(SEASON_PREVIEW_DELAY_MS)
+            if (focusedSeasonIndex == focusedIndex && focusedIndex != currentSelectedTabIndex) {
+                focusTarget = SeriesFocusTarget.Season(focusedIndex)
+                currentOnChangeSeason(focusedIndex)
+            }
+        }
+    }
 
     Box(
         modifier =
@@ -169,47 +232,71 @@ fun SeriesOverviewContent(
                             PaddingValues(start = 0.dp, end = 16.dp)
                         }
                     }
+                if (episodeSpotlight) {
+                    TitleOrLogo(
+                        item = series,
+                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                        modifier = Modifier.padding(start = HeaderUtils.startPadding),
+                    )
+                    FocusedEpisodeHeader(
+                        preferences = preferences,
+                        ep = focusedEpisode,
+                        chosenStreams = chosenStreams,
+                        overviewOnClick = overviewOnClick,
+                        overviewOnFocus = {
+                            if (it.isFocused) {
+                                scope.launch {
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(.6f),
+                    )
+                } else {
+                    SeriesDetailsHeader(
+                        series = series,
+                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                        overviewOnClick = seriesOverviewOnClick,
+                        bringIntoViewRequester = bringIntoViewRequester,
+                    )
+                }
                 TabRow(
                     selectedTabIndex = selectedTabIndex,
                     tabs = tabs,
                     onClick =
                         remember {
                             {
-                                currentOnChangeSeason(it)
-                                requestFocusAfterSeason = true
+                                focusedSeasonIndex = null
+                                focusTarget = SeriesFocusTarget.Episode(it)
+                                if (it != currentSelectedTabIndex) {
+                                    currentOnChangeSeason(it)
+                                }
                             }
                         },
+                    onFocusedTabIndexChange = {
+                        focusedSeasonIndex = it
+                        if (it != null) {
+                            focusTarget = SeriesFocusTarget.Season(it)
+                            episodeSpotlight = false
+                        }
+                    },
+                    onDown = {
+                        focusTarget = SeriesFocusTarget.Episode(it)
+                        if (it != currentSelectedTabIndex) {
+                            currentOnChangeSeason(it)
+                        }
+                    },
                     modifier =
                         Modifier
-                            .focusRequester(tabRowFocusRequester)
                             .padding(paddingValues)
                             .padding(bottom = 4.dp)
                             .fillMaxWidth(),
-                )
-                TitleOrLogo(
-                    item = series,
-                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                    modifier = Modifier.padding(start = HeaderUtils.startPadding),
-                )
-                FocusedEpisodeHeader(
-                    preferences = preferences,
-                    ep = focusedEpisode,
-                    chosenStreams = chosenStreams,
-                    overviewOnClick = overviewOnClick,
-                    overviewOnFocus = {
-                        if (it.isFocused) {
-                            scope.launch {
-                                bringIntoViewRequester.bringIntoView()
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(.6f),
                 )
 
 //                key(position.seasonTabIndex) {
                 when (val eps = episodes) {
                     EpisodeList.Loading -> {
-                        LoadingPage()
+                        LoadingPage(focusEnabled = false)
                     }
 
                     is EpisodeList.Error -> {
@@ -217,15 +304,7 @@ fun SeriesOverviewContent(
                     }
 
                     is EpisodeList.Success -> {
-                        if (requestFocusAfterSeason) {
-                            // Changing seasons, so move focus once the new episodes are loaded
-                            LaunchedEffect(Unit) {
-                                firstItemFocusRequester.tryRequestFocus()
-                                requestFocusAfterSeason = false
-                            }
-                        }
                         val state = rememberLazyListState(position.episodeRowIndex)
-                        var epPosition by rememberInt(position.episodeRowIndex)
                         LazyRow(
                             state = state,
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -233,9 +312,11 @@ fun SeriesOverviewContent(
                             modifier =
                                 Modifier
                                     .focusRestorer(firstItemFocusRequester)
-//                                    .focusRequester(episodeRowFocusRequester)
                                     .onFocusChanged {
                                         cardRowHasFocus = it.hasFocus
+                                        if (it.hasFocus) {
+                                            focusTarget = SeriesFocusTarget.Episode(selectedTabIndex)
+                                        }
                                     },
                         ) {
                             itemsIndexed(eps.episodes) { episodeIndex, episode ->
@@ -257,21 +338,24 @@ fun SeriesOverviewContent(
                                         episode?.data?.userData?.playedPercentage
                                             ?: 0.0,
                                     onClick = {
-                                        epPosition = episodeIndex
                                         if (episode != null) onClick.invoke(episode)
                                     },
                                     onLongClick = {
-                                        epPosition = episodeIndex
                                         if (episode != null) onLongClick.invoke(episode)
                                     },
                                     modifier =
                                         Modifier
+                                            .handleDPadKeyEvents(
+                                                onUp = {
+                                                    focusTarget = SeriesFocusTarget.Season(selectedTabIndex)
+                                                },
+                                            )
                                             .ifElse(
                                                 episodeIndex == position.episodeRowIndex,
                                                 Modifier
                                                     .focusRequester(firstItemFocusRequester),
                                             ).ifElse(
-                                                episodeIndex == epPosition,
+                                                episodeIndex == position.episodeRowIndex,
                                                 Modifier.focusRequester(episodeRowFocusRequester),
                                             ).background(
                                                 if (episodeIndex != position.episodeRowIndex) {
@@ -289,6 +373,8 @@ fun SeriesOverviewContent(
                                                     }
                                             }.onFocusChanged {
                                                 if (it.isFocused) {
+                                                    focusTarget = SeriesFocusTarget.Episode(selectedTabIndex)
+                                                    episodeSpotlight = true
                                                     scope.launch {
                                                         bringIntoViewRequester.bringIntoView()
                                                     }
@@ -319,7 +405,8 @@ fun SeriesOverviewContent(
                         moreOnClick = moreOnClick,
                         watchOnClick = {
                             watchOnClick.invoke()
-                            episodeRowFocusRequester.tryRequestFocus()
+                            focusTarget = SeriesFocusTarget.Episode(selectedTabIndex)
+                            focusRequestVersion++
                         },
                         favoriteOnClick = favoriteOnClick,
                         buttonOnFocusChanged = {
@@ -362,6 +449,9 @@ fun SeriesOverviewContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .onFocusChanged {
+                                        if (it.hasFocus) focusTarget = SeriesFocusTarget.External
+                                    }
                                     .focusRequester(castCrewRowFocusRequester),
                         )
                     }
@@ -373,6 +463,9 @@ fun SeriesOverviewContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .onFocusChanged {
+                                        if (it.hasFocus) focusTarget = SeriesFocusTarget.External
+                                    }
                                     .focusRequester(guestStarRowFocusRequester),
                         )
                     }
@@ -390,6 +483,9 @@ fun SeriesOverviewContent(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .onFocusChanged {
+                                if (it.hasFocus) focusTarget = SeriesFocusTarget.External
+                            }
                             .focusRequester(extrasRowFocusRequester),
                 )
             }

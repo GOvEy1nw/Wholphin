@@ -19,7 +19,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
-import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
@@ -30,12 +29,10 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
-import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.util.DataLoadingState
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import org.jellyfin.sdk.model.api.BaseItemKind
-import org.jellyfin.sdk.model.api.PersonKind
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.UUIDSerializer
 import org.jellyfin.sdk.model.serializer.toUUID
@@ -94,8 +91,6 @@ fun SeriesOverview(
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
     var showPlaylistDialog by remember { mutableStateOf<UUID?>(null) }
     val playlistState by playlistViewModel.playlistState.collectAsState()
-
-    var rowFocused by rememberInt()
 
     val contextActions =
         remember {
@@ -168,16 +163,6 @@ fun SeriesOverview(
         }
 
         is DataLoadingState.Success<BaseItem> -> {
-            RequestOrRestoreFocus(
-                when (rowFocused) {
-                    EPISODE_ROW -> episodeRowFocusRequester
-                    CAST_AND_CREW_ROW -> castCrewRowFocusRequester
-                    GUEST_STAR_ROW -> guestStarRowFocusRequester
-                    EXTRAS_ROW -> extrasRowFocusRequester
-                    else -> episodeRowFocusRequester
-                },
-                "series_overview",
-            )
             LifecycleResumeEffect(destination.itemId) {
                 viewModel.onResumePage()
 
@@ -195,6 +180,7 @@ fun SeriesOverview(
                 peopleInEpisode = state.peopleInEpisode.people,
                 seasonExtras = state.extras,
                 position = position,
+                initialFocusEpisode = state.initialFocusEpisode,
                 firstItemFocusRequester = firstItemFocusRequester,
                 episodeRowFocusRequester = episodeRowFocusRequester,
                 castCrewRowFocusRequester = castCrewRowFocusRequester,
@@ -205,11 +191,8 @@ fun SeriesOverview(
                         viewModel.selectSeason(index)
                     }
                 },
-                onFocusEpisode = { episodeIndex ->
-                    viewModel.selectEpisode(episodeIndex)
-                },
+                onFocusEpisode = viewModel::selectEpisode,
                 onClick = {
-                    rowFocused = EPISODE_ROW
                     val resumePosition =
                         it.data.userData
                             ?.playbackPositionTicks
@@ -236,7 +219,6 @@ fun SeriesOverview(
                         )
                 },
                 playOnClick = { resume ->
-                    rowFocused = EPISODE_ROW
                     episodeList?.getOrNull(position.episodeRowIndex)?.let {
                         viewModel.release()
                         viewModel.navigateTo(
@@ -280,9 +262,8 @@ fun SeriesOverview(
                         overviewDialog = ItemDetailsDialogInfo(it)
                     }
                 },
+                seriesOverviewOnClick = { overviewDialog = ItemDetailsDialogInfo(st.data) },
                 personOnClick = {
-                    rowFocused =
-                        if (it.type == PersonKind.GUEST_STAR) GUEST_STAR_ROW else CAST_AND_CREW_ROW
                     viewModel.navigateTo(
                         Destination.MediaItem(
                             it.id,
@@ -291,7 +272,6 @@ fun SeriesOverview(
                     )
                 },
                 onClickExtra = { _, extra ->
-                    rowFocused = EXTRAS_ROW
                     viewModel.navigateTo(extra.destination)
                 },
                 canDelete = { viewModel.canDelete(it, preferences.appPreferences) },
@@ -338,8 +318,3 @@ fun SeriesOverview(
         )
     }
 }
-
-private const val EPISODE_ROW = 0
-private const val CAST_AND_CREW_ROW = EPISODE_ROW + 1
-private const val GUEST_STAR_ROW = CAST_AND_CREW_ROW + 1
-private const val EXTRAS_ROW = GUEST_STAR_ROW + 1

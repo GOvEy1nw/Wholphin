@@ -138,7 +138,7 @@ class SeriesViewModel
 
                 val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
                 val nextUpDeferred =
-                    if (seriesPageType == SeriesPageType.OVERVIEW && seasonEpisodeIds == null) {
+                    if (seriesPageType == SeriesPageType.OVERVIEW) {
                         viewModelScope.async(WholphinDispatchers.IO) {
                             val result by api.tvShowsApi.getNextUp(seriesId = seriesId, limit = 1)
                             result.items.firstOrNull()?.let(::BaseItem)
@@ -189,6 +189,8 @@ class SeriesViewModel
                                 initial.target?.seasonId,
                                 (initial.episodes as? EpisodeList.Success)?.initialEpisodeIndex ?: 0,
                             ),
+                        initialFocusEpisode =
+                            initial.target?.let { it.episodeId != null || it.episodeNumber != null } == true,
                         trailers = remoteTrailers,
                     )
                 }
@@ -911,6 +913,7 @@ data class SeriesState(
     val seasons: List<BaseItem?> = emptyList(),
     val episodes: EpisodeList = EpisodeList.Loading,
     val position: SeriesOverviewPosition = SeriesOverviewPosition(0, null, 0),
+    val initialFocusEpisode: Boolean = false,
     val seasonLoadGeneration: Long = 0,
     val trailers: List<Trailer> = emptyList(),
     val extras: List<ExtrasItem> = emptyList(),
