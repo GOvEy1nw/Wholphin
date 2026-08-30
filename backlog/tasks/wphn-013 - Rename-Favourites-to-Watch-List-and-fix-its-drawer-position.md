@@ -1,11 +1,11 @@
 ---
 id: wphn-013
 title: Rename Favourites to Watch List and fix its drawer position
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-08-30 22:24'
+updated_date: '2026-08-30 22:48'
 labels:
   - android
   - navigation
@@ -101,6 +101,8 @@ Verification:
 Deviations:
 - The task's manual refresh check exposed a pre-existing shared-path bug: TypedProvider.setFavorite called setWatched. Fixed surgically in the same Watch List path because acceptance criterion requires add/remove updates.
 - No new automated test was added; the changed branch is a one-line API delegation and the task-prescribed device journeys plus compilation/assemble provide direct evidence.
+
+Human approval received on 2026-08-30; accepted without requested changes.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
