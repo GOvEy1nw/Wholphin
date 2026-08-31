@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -180,8 +181,13 @@ fun SeriesOverviewContent(
         }
     LaunchedEffect(focusTarget, focusAvailabilityKey, focusRequestVersion) {
         when (val target = focusTarget) {
-            is SeriesFocusTarget.Season ->
-                tabFocusRequesters.getOrNull(target.index)?.tryRequestFocus()
+            is SeriesFocusTarget.Season -> {
+                val scrollPosition = scrollState.value
+                if (tabFocusRequesters.getOrNull(target.index)?.tryRequestFocus() == true) {
+                    withFrameNanos { }
+                    scrollState.scrollTo(scrollPosition)
+                }
+            }
             is SeriesFocusTarget.Episode ->
                 if (focusAvailabilityKey != null) {
                     episodeRowFocusRequester.tryRequestFocus()
@@ -277,7 +283,6 @@ fun SeriesOverviewContent(
                         focusedSeasonIndex = it
                         if (it != null) {
                             focusTarget = SeriesFocusTarget.Season(it)
-                            episodeSpotlight = false
                         }
                     },
                     onDown = {

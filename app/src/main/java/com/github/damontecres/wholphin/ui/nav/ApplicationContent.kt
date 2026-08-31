@@ -1,5 +1,8 @@
 package com.github.damontecres.wholphin.ui.nav
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -10,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.metadata
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.DrawerValue
@@ -77,7 +81,26 @@ fun ApplicationContent(
             entryProvider = { key ->
                 key as Destination
                 val contentKey = "${key}_${server?.id}_${user?.id}"
-                NavEntry(key, contentKey = contentKey) {
+                NavEntry(
+                    key,
+                    contentKey = contentKey,
+                    metadata =
+                        if (key.fullScreen) {
+                            emptyMap()
+                        } else {
+                            metadata {
+                                put(NavDisplay.TransitionKey) {
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                }
+                                put(NavDisplay.PopTransitionKey) {
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                }
+                                put(NavDisplay.PredictivePopTransitionKey) { _: Int ->
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                }
+                            }
+                        },
+                ) {
                     if (key.fullScreen) {
                         DestinationContent(
                             destination = key,

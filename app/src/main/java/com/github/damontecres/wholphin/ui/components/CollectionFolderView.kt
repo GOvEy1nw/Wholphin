@@ -167,7 +167,9 @@ class CollectionFolderViewModel
                         }
 
                     val libraryDisplayInfo =
-                        serverRepository.currentUser?.let { user ->
+                        serverRepository.currentUser?.takeIf {
+                            collectionFilter.useSavedLibraryDisplayInfo
+                        }?.let { user ->
                             val id = collectionFilter.libraryDisplayInfoIdOverride ?: itemId
                             libraryDisplayInfoDao.getItem(user, id)
                         }

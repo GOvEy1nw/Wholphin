@@ -212,8 +212,9 @@ class NavDrawerService
                             }
                         val (previewDestination, clickDestination) =
                             if (isVideoLibrary(it.type, it.collectionType, it.isRecordingFolder)) {
-                                Destination.LibraryHub(it.itemId, it.type, it.collectionType) to
-                                    Destination.LibraryBrowse(it.itemId, it.type, it.collectionType)
+                                Destination.LibraryHub(it.itemId, it.type, it.collectionType).let { hub ->
+                                    hub to hub
+                                }
                             } else {
                                 currentDestination to currentDestination
                             }

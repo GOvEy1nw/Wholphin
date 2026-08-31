@@ -22,6 +22,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
+import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.createGenreDestination
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -77,6 +79,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.request.GetGenresRequest
 import org.jellyfin.sdk.api.client.ApiClient
@@ -230,7 +233,7 @@ class LibraryHubViewModel
                                     userId = serverRepository.currentUser?.id,
                                     parentId = destination.itemId,
                                     fields = SlimItemFields,
-                                    includeItemTypes = collectionType.baseItemKinds,
+                                    includeItemTypes = libraryHubItemTypes(collectionType),
                                 ),
                             ).content.items
                             .map { LibraryHubGenre(it.id, it.name ?: "") }
@@ -245,8 +248,12 @@ class LibraryHubViewModel
             _state.update { it.withActiveGenre(genre) }
         }
 
+        fun activateAll() {
+            _state.update { it.withActiveAll() }
+        }
+
         fun restoreHome() {
-            _state.update { it.withActiveGenre(null) }
+            _state.update { it.withHome() }
         }
 
         fun updatePosition(position: RowColumn) {
@@ -309,12 +316,14 @@ data class LibraryHubState(
     val firstAvailable: BaseItem? = null,
     val focusedItem: BaseItem? = null,
     val genres: List<LibraryHubGenre> = emptyList(),
+    val activeAll: Boolean = false,
     val activeGenre: LibraryHubGenre? = null,
     val position: RowColumn = RowColumn(-1, -1),
     val loadingState: LoadingState = LoadingState.Pending,
     val refreshState: LoadingState = LoadingState.Pending,
 ) {
     val spotlight: BaseItem? get() = focusedItem ?: firstAvailable
+    val isBrowsing: Boolean get() = activeAll || activeGenre != null
 }
 
 data class LibraryHubGenre(
@@ -322,8 +331,22 @@ data class LibraryHubGenre(
     val name: String,
 )
 
-internal fun LibraryHubState.withActiveGenre(genre: LibraryHubGenre?): LibraryHubState =
-    copy(activeGenre = genre, focusedItem = null)
+internal fun LibraryHubState.withActiveAll(): LibraryHubState =
+    copy(activeAll = true, activeGenre = null, focusedItem = null)
+
+internal fun LibraryHubState.withActiveGenre(genre: LibraryHubGenre): LibraryHubState =
+    copy(activeAll = false, activeGenre = genre, focusedItem = null)
+
+internal fun LibraryHubState.withHome(): LibraryHubState =
+    copy(activeAll = false, activeGenre = null, focusedItem = null)
+
+internal fun LibraryHubState.selectorIndex(): Int =
+    activeGenre
+        ?.let { genre -> genres.indexOfFirst { it.id == genre.id }.takeIf { it >= 0 }?.plus(2) }
+        ?: if (activeAll) 1 else 0
+
+internal fun libraryHubItemTypes(collectionType: CollectionType): List<BaseItemKind> =
+    if (collectionType == CollectionType.TVSHOWS) listOf(BaseItemKind.SERIES) else collectionType.baseItemKinds
 
 @Composable
 fun LibraryHub(
@@ -341,13 +364,15 @@ fun LibraryHub(
     val loadingState = state.loadingState
     val selectorTabs =
         remember(state.genres) {
-            listOf(TabDetails(StringStringProvider("Home"))) +
+            listOf(
+                TabDetails(StringStringProvider("Home")),
+                TabDetails(StringStringProvider("All")),
+            ) +
                 state.genres.map { TabDetails(StringStringProvider(it.name)) }
         }
-    val selectedTabIndex =
-        state.activeGenre?.let { genre -> state.genres.indexOfFirst { it.id == genre.id } + 1 } ?: 0
+    val selectedTabIndex = state.selectorIndex()
     val selectedTab = selectorTabs.getOrNull(selectedTabIndex) ?: selectorTabs.first()
-    val genreGridFocusRequester = remember { FocusRequester() }
+    val browseGridFocusRequester = remember { FocusRequester() }
     var pendingSelectorFocus by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(pendingSelectorFocus) {
@@ -358,7 +383,7 @@ fun LibraryHub(
         }
     }
 
-    BackHandler(enabled = state.activeGenre != null) {
+    BackHandler(enabled = state.isBrowsing) {
         pendingSelectorFocus = 0
         viewModel.restoreHome()
     }
@@ -379,58 +404,74 @@ fun LibraryHub(
                     tabs = selectorTabs,
                     onClick = { index ->
                         pendingSelectorFocus = index
-                        state.genres.getOrNull(index - 1)?.let(viewModel::activateGenre) ?: viewModel.restoreHome()
+                        when (index) {
+                            0 -> viewModel.restoreHome()
+                            1 -> viewModel.activateAll()
+                            else -> state.genres.getOrNull(index - 2)?.let(viewModel::activateGenre)
+                        }
                     },
                     modifier =
                         Modifier.focusProperties {
                             down =
-                                if (state.activeGenre != null) {
-                                    genreGridFocusRequester
+                                if (state.isBrowsing) {
+                                    browseGridFocusRequester
                                 } else {
                                     firstMediaFocusRequester
                                 }
                         },
                 )
-                state.activeGenre?.let { genre ->
+                if (state.isBrowsing) {
                     state.library?.let { library ->
-                        val genreDestination =
-                            createGenreDestination(
-                                genreId = genre.id,
-                                genreName = genre.name,
-                                parentId = library.itemId,
-                                parentName = library.name,
-                                includeItemTypes = library.collectionType.baseItemKinds,
-                                collectionType = library.collectionType,
-                            )
-                        key(genre.id) {
+                        val genre = state.activeGenre
+                        val initialFilter =
+                            genre?.let {
+                                createGenreDestination(
+                                    genreId = it.id,
+                                    genreName = it.name,
+                                    parentId = library.itemId,
+                                    parentName = library.name,
+                                    includeItemTypes = libraryHubItemTypes(library.collectionType),
+                                    collectionType = library.collectionType,
+                                ).filter.copy(useSavedLibraryDisplayInfo = false)
+                            }
+                                ?: CollectionFolderFilter(
+                                    filter =
+                                        GetItemsFilter(
+                                            includeItemTypes = libraryHubItemTypes(library.collectionType),
+                                        ),
+                                    useSavedLibraryDisplayInfo = false,
+                                )
+                        key(genre?.id ?: "all") {
                             CompositionLocalProvider(LocalContentTakeFocus provides false) {
                                 CollectionFolderView(
-                                preferences = preferences,
-                                itemId = library.itemId,
-                                initialFilter = genreDestination.filter,
-                                recursive = genreDestination.recursive,
-                                onClickItem = { _, item -> viewModel.navigateTo(item.destination()) },
-                                sortOptions =
-                                    if (library.collectionType == CollectionType.TVSHOWS) {
-                                        SeriesSortOptions
-                                    } else {
-                                        MovieSortOptions
-                                    },
-                                playEnabled = library.collectionType == CollectionType.MOVIES,
-                                defaultViewOptions = ViewOptionsPoster,
-                                viewModelKey = "${library.itemId}_genres_${genre.id}",
-                                showTitle = false,
-                                focusRequesterOnEmpty = selectedTab.tabFocusRequester,
-                                gridFocusRequester = genreGridFocusRequester,
-                                focusRequesterOnFirstRowUp = selectedTab.tabFocusRequester,
-                                cancelLoadsOnDispose = true,
-                                onFocusedItem = viewModel::updateFocusedItem,
+                                    preferences = preferences,
+                                    itemId = library.itemId,
+                                    initialFilter = initialFilter,
+                                    recursive = true,
+                                    onClickItem = { _, item -> viewModel.navigateTo(item.destination()) },
+                                    sortOptions =
+                                        if (library.collectionType == CollectionType.TVSHOWS) {
+                                            SeriesSortOptions
+                                        } else {
+                                            MovieSortOptions
+                                        },
+                                    playEnabled = library.collectionType == CollectionType.MOVIES,
+                                    defaultViewOptions = ViewOptionsPoster.copy(showTitles = false),
+                                    viewModelKey =
+                                        genre?.let { "${library.itemId}_genres_${it.id}" }
+                                            ?: "${library.itemId}_all",
+                                    showTitle = false,
+                                    focusRequesterOnEmpty = selectedTab.tabFocusRequester,
+                                    gridFocusRequester = browseGridFocusRequester,
+                                    focusRequesterOnFirstRowUp = selectedTab.tabFocusRequester,
+                                    cancelLoadsOnDispose = true,
+                                    onFocusedItem = viewModel::updateFocusedItem,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
                         }
                     }
-                } ?: HomePageContent(
+                } else HomePageContent(
                     homeRows = state.activeRows,
                     position = state.position,
                     onFocusPosition = viewModel::updatePosition,

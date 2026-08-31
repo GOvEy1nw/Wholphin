@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.library
 
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,12 +12,26 @@ import java.util.UUID
 
 class LibraryHubTest {
     @Test
-    fun genreSelectionIsExplicitAndHomeResetClearsIt() {
+    fun allAndGenreSelectionsAreExplicitAndHomeResetClearsThem() {
         val genre = LibraryHubGenre(UUID.randomUUID(), "Drama")
-        val selected = LibraryHubState().withActiveGenre(genre)
+        val genres = listOf(genre)
+        val selected = LibraryHubState(genres = genres).withActiveGenre(genre)
+        val all = selected.withActiveAll()
 
         assertSame(genre, selected.activeGenre)
-        assertNull(selected.withActiveGenre(null).activeGenre)
+        assertEquals(2, selected.selectorIndex())
+        assertEquals(1, all.selectorIndex())
+        assertNull(all.activeGenre)
+        assertFalse(all.withHome().activeAll)
+        assertNull(all.withHome().activeGenre)
+    }
+
+    @Test
+    fun tvHubItemsAreLimitedToSeries() {
+        assertEquals(
+            listOf(BaseItemKind.SERIES),
+            libraryHubItemTypes(CollectionType.TVSHOWS),
+        )
     }
 
     @Test

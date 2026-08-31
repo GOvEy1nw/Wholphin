@@ -1,10 +1,13 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.lifecycle.SavedStateHandle
+import com.github.damontecres.wholphin.data.LibraryDisplayInfoDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
+import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.services.DeletedItem
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.ui.successQueryResult
@@ -22,6 +25,7 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.slot
 import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -55,6 +59,7 @@ class CollectionFolderViewModelTest {
     private val mockServerRepository = mockk<ServerRepository>(relaxed = true)
     private val mockMediaManagementService = mockk<MediaManagementService>(relaxed = true)
     private val mockUserLibraryApi = mockk<UserLibraryApi>()
+    private val mockLibraryDisplayInfoDao = mockk<LibraryDisplayInfoDao>(relaxed = true)
 
     private val artistsRequest = slot<GetArtistsRequest>()
     private val itemsRequest = slot<GetItemsRequest>()
@@ -100,13 +105,17 @@ class CollectionFolderViewModelTest {
         unmockkObject(GetPersonsHandler)
     }
 
-    private fun createViewModel(filter: GetItemsFilter) =
+    private fun createViewModel(
+        filter: GetItemsFilter,
+        useSavedLibraryDisplayInfo: Boolean = true,
+        defaultViewOptions: ViewOptions = ViewOptionsSquare,
+    ) =
         CollectionFolderViewModel(
             savedStateHandle = SavedStateHandle(),
             api = mockApi,
             context = mockk(relaxed = true),
             serverRepository = mockServerRepository,
-            libraryDisplayInfoDao = mockk(relaxed = true),
+            libraryDisplayInfoDao = mockLibraryDisplayInfoDao,
             favoriteWatchManager = mockk(relaxed = true),
             backdropService = mockk(relaxed = true),
             navigationManager = mockk(relaxed = true),
@@ -120,10 +129,36 @@ class CollectionFolderViewModelTest {
             itemId = libraryId.toString(),
             initialSortAndDirection = null,
             recursive = true,
-            collectionFilter = CollectionFolderFilter(filter = filter),
+            collectionFilter =
+                CollectionFolderFilter(
+                    filter = filter,
+                    useSavedLibraryDisplayInfo = useSavedLibraryDisplayInfo,
+                ),
             useSeriesForPrimary = false,
-            defaultViewOptions = ViewOptionsSquare,
+            defaultViewOptions = defaultViewOptions,
         )
+
+    @Test
+    fun `saved view options are ignored when disabled`() =
+        runTest(testDispatcher) {
+            val user = mockk<JellyfinUser>(relaxed = true)
+            val savedDisplayInfo = mockk<LibraryDisplayInfo>(relaxed = true)
+            val captionlessOptions = ViewOptionsPoster.copy(showTitles = false)
+            every { mockServerRepository.currentUser } returns user
+            every { savedDisplayInfo.viewOptions } returns ViewOptionsPoster
+            every { mockLibraryDisplayInfoDao.getItem(user, libraryId.toString()) } returns savedDisplayInfo
+
+            val viewModel =
+                createViewModel(
+                    filter = GetItemsFilter(),
+                    useSavedLibraryDisplayInfo = false,
+                    defaultViewOptions = captionlessOptions,
+                )
+            advanceUntilIdle()
+
+            assertEquals(captionlessOptions, viewModel.state.value.viewOptions)
+            verify(exactly = 0) { mockLibraryDisplayInfoDao.getItem(user, any<String>()) }
+        }
 
     /** Counting via /Items would return every song and album, overshooting the artist grid */
     @Test
