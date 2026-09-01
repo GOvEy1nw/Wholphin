@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildCapabilities
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -58,6 +59,7 @@ class MediaManagementService
             item: BaseItem,
             appPreferences: AppPreferences,
         ): Boolean {
+            if (!BuildCapabilities.mediaManagementEnabled) return false
             Timber.v("canDelete %s: %s", item.id, item.canDelete)
             val enabled = appPreferences.interfacePreferences.enableMediaManagement
             return enabled &&
@@ -87,6 +89,7 @@ class MediaManagementService
          * This item will be sent through [deletedItemFlow] for other services or view models to react.
          */
         suspend fun deleteItem(item: BaseItem): DeleteResult {
+            if (!BuildCapabilities.mediaManagementEnabled) return DeleteResult.Disabled
             try {
                 Timber.i("Deleting %s", item.id)
                 api.libraryApi.deleteItem(item.id)
@@ -105,6 +108,8 @@ data class DeletedItem(
 
 sealed interface DeleteResult {
     data object Success : DeleteResult
+
+    data object Disabled : DeleteResult
 
     data class Error(
         val ex: Exception,
@@ -132,5 +137,7 @@ fun ViewModel.deleteItem(
             showToast(context, "Deleted")
             onSuccess.invoke()
         }
+
+        DeleteResult.Disabled -> Unit
     }
 }

@@ -288,12 +288,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (screensaverService.state.value.show) {
+        if (BuildCapabilities.screensaverEnabled && screensaverService.state.value.show) {
             screensaverService.stop(false)
             screensaverService.pulse()
             return true
         } else {
-            screensaverService.pulse()
+            if (BuildCapabilities.screensaverEnabled) screensaverService.pulse()
             return super.dispatchKeyEvent(event)
         }
     }
@@ -302,8 +302,10 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         Timber.d("onResume")
         viewModel.appResume()
-        lifecycleScope.launchDefault {
-            screensaverService.pulse()
+        if (BuildCapabilities.screensaverEnabled) {
+            lifecycleScope.launchDefault {
+                screensaverService.pulse()
+            }
         }
     }
 
@@ -324,7 +326,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         Timber.d("onStop")
-        screensaverService.stop(true)
+        if (BuildCapabilities.screensaverEnabled) screensaverService.stop(true)
         tvProviderSchedulerService.launchOneTimeRefresh()
     }
 

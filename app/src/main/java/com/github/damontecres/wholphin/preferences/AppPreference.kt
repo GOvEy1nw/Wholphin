@@ -5,6 +5,7 @@ import androidx.annotation.ArrayRes
 import androidx.annotation.StringRes
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.github.damontecres.wholphin.BuildCapabilities
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
@@ -1121,7 +1122,10 @@ val basicPreferences =
                     AppPreference.SubtitleStyle,
                     AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
-                ),
+                ).filterNot {
+                    it == AppPreference.PlayThemeMusic && !BuildCapabilities.themeMusicEnabled ||
+                        it == AppPreference.ScreensaverSettings && !BuildCapabilities.screensaverEnabled
+                },
         ),
         PreferenceGroup(
             title = R.string.playback,
@@ -1167,7 +1171,7 @@ val basicPreferences =
             title = R.string.more,
             preferences =
                 buildList {
-                    if (BuildConfig.DISCOVER_ENABLED) {
+                    if (BuildConfig.DISCOVER_ENABLED && BuildCapabilities.serverManagementEnabled) {
                         add(AppPreference.SeerrIntegration)
                     }
                     add(AppPreference.AdvancedSettings)
@@ -1241,7 +1245,9 @@ val advancedPreferences =
 //                    AppPreference.NavDrawerSwitchOnFocus,
                         AppPreference.SlideshowDuration,
                         AppPreference.SlideshowPlayVideos,
-                    ),
+                    ).filterNot {
+                        it == AppPreference.ManageMedia && !BuildCapabilities.mediaManagementEnabled
+                    },
             ),
         )
         add(
@@ -1336,30 +1342,34 @@ val liveTvPreferences =
     )
 
 val screensaverPreferences =
-    listOf(
-        PreferenceGroup(
-            title = R.string.screensaver,
-            preferences =
-                listOf(
-                    ScreensaverPreference.Enabled,
-                    ScreensaverPreference.StartDelay,
-                    ScreensaverPreference.Duration,
-                    ScreensaverPreference.ShowClock,
-                    ScreensaverPreference.Animate,
-                    ScreensaverPreference.MaxAge,
-                    ScreensaverPreference.ItemTypes,
-                    ScreensaverPreference.Start,
+    if (BuildCapabilities.screensaverEnabled) {
+        listOf(
+            PreferenceGroup(
+                title = R.string.screensaver,
+                preferences =
+                    listOf(
+                        ScreensaverPreference.Enabled,
+                        ScreensaverPreference.StartDelay,
+                        ScreensaverPreference.Duration,
+                        ScreensaverPreference.ShowClock,
+                        ScreensaverPreference.Animate,
+                        ScreensaverPreference.MaxAge,
+                        ScreensaverPreference.ItemTypes,
+                        ScreensaverPreference.Start,
+                    ),
+            ),
+            PreferenceGroup(
+                title = R.string.dim_screen,
+                preferences =
+                    listOf(
+                        ScreensaverPreference.DimToggle,
+                        ScreensaverPreference.DimPercentage,
+                    ),
                 ),
-        ),
-        PreferenceGroup(
-            title = R.string.dim_screen,
-            preferences =
-                listOf(
-                    ScreensaverPreference.DimToggle,
-                    ScreensaverPreference.DimPercentage,
-                ),
-        ),
-    )
+        )
+    } else {
+        emptyList()
+    }
 
 data class AppSwitchPreference<Pref>(
     @get:StringRes override val title: Int,

@@ -134,30 +134,32 @@ fun MainContent(
                     }
                 },
             )
-            val screenSaverState by screensaverService.state.collectAsState()
-            if (screenSaverState.enabled || screenSaverState.enabledTemp) {
+            if (BuildCapabilities.screensaverEnabled) {
+                val screenSaverState by screensaverService.state.collectAsState()
+                if (screenSaverState.enabled || screenSaverState.enabledTemp) {
+                    AnimatedVisibility(
+                        visible = screenSaverState.show,
+                        enter = ScreensaverService.enterAnimation,
+                        exit = ScreensaverService.exitAnimation,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        AppScreensaver(userPreferences.appPreferences, Modifier.fillMaxSize())
+                    }
+                }
                 AnimatedVisibility(
-                    visible = screenSaverState.show,
+                    visible = screenSaverState.showDim || (screenSaverState.dimEnabled && screenSaverState.show),
                     enter = ScreensaverService.enterAnimation,
                     exit = ScreensaverService.exitAnimation,
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    AppScreensaver(userPreferences.appPreferences, Modifier.fillMaxSize())
+                    val alpha =
+                        userPreferences.appPreferences.interfacePreferences.screensaverPreference.dimPercent / 100f
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = alpha)),
+                    )
                 }
-            }
-            AnimatedVisibility(
-                visible = screenSaverState.showDim || (screenSaverState.dimEnabled && screenSaverState.show),
-                enter = ScreensaverService.enterAnimation,
-                exit = ScreensaverService.exitAnimation,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                val alpha =
-                    userPreferences.appPreferences.interfacePreferences.screensaverPreference.dimPercent / 100f
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = alpha)),
-                )
             }
         }
     }

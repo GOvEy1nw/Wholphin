@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildCapabilities
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.studioNames
@@ -67,6 +68,7 @@ fun ItemDetailsDialog(
     showFilePath: Boolean,
     onDismissRequest: () -> Unit,
 ) {
+    val showTechnicalDetails = showFilePath && BuildCapabilities.mediaManagementEnabled
     val resources = LocalResources.current
     // Extract stringResource calls outside of ScrollableDialog's non-composable lambda
     val pathLabel = stringResource(R.string.path)
@@ -141,7 +143,7 @@ fun ItemDetailsDialog(
                         items =
                             buildList {
                                 source.container?.let { add(containerLabel to it) }
-                                if (showFilePath) {
+                                if (showTechnicalDetails) {
                                     source.path?.let { add(pathLabel to it) }
                                     add("ID" to (source.id ?: unknown))
                                 }
@@ -211,7 +213,7 @@ fun ItemDetailsDialog(
                                         groupIndex * 3 + index,
                                         subtitleStreams.size,
                                     ),
-                                items = buildSubtitleStreamInfo(resources, stream, showFilePath),
+                                items = buildSubtitleStreamInfo(resources, stream, showTechnicalDetails),
                                 modifier = Modifier.weight(1f),
                             )
                         }

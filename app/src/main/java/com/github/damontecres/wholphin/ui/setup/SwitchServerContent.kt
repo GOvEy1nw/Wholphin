@@ -51,6 +51,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildCapabilities
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.ui.components.BasicDialog
@@ -176,9 +177,11 @@ private fun SwitchServerContentInternal(
                                 }
                             },
                             onLongClick = {
-                                showDeleteDialog = server.server
+                                if (BuildCapabilities.serverManagementEnabled) {
+                                    showDeleteDialog = server.server
+                                }
                             },
-                            allowDelete = true,
+                            allowDelete = BuildCapabilities.serverManagementEnabled,
                             modifier =
                                 Modifier
                                     .onFocusChanged {
@@ -189,19 +192,21 @@ private fun SwitchServerContentInternal(
                                     ),
                         )
                     }
-                    // Add Server card - always rightmost
-                    item {
-                        AddServerCard(
-                            onClick = { showAddServer = true },
-                            modifier =
-                                Modifier
-                                    .onFocusChanged {
-                                        if (it.isFocused) focusedIndex = -1
-                                    }.ifElse(
-                                        state.servers.isEmpty(),
-                                        Modifier.focusRequester(firstServerFocus),
-                                    ),
-                        )
+                    if (BuildCapabilities.serverManagementEnabled) {
+                        // Add Server card - always rightmost
+                        item {
+                            AddServerCard(
+                                onClick = { showAddServer = true },
+                                modifier =
+                                    Modifier
+                                        .onFocusChanged {
+                                            if (it.isFocused) focusedIndex = -1
+                                        }.ifElse(
+                                            state.servers.isEmpty(),
+                                            Modifier.focusRequester(firstServerFocus),
+                                        ),
+                            )
+                        }
                     }
                 }
             }
@@ -247,7 +252,7 @@ private fun SwitchServerContentInternal(
         }
 
         // Delete server dialog
-        showDeleteDialog?.let { server ->
+        showDeleteDialog?.takeIf { BuildCapabilities.serverManagementEnabled }?.let { server ->
             DialogPopup(
                 showDialog = true,
                 title = server.name ?: server.url,
@@ -277,7 +282,7 @@ private fun SwitchServerContentInternal(
             )
         }
 
-        if (showAddServer) {
+        if (showAddServer && BuildCapabilities.serverManagementEnabled) {
             AddServerDialog(
                 onDismissRequest = { showAddServer = false },
                 viewModel = viewModel,

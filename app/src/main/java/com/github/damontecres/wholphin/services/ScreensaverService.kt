@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import coil3.imageLoader
 import coil3.request.ImageRequest
+import com.github.damontecres.wholphin.BuildCapabilities
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
 import com.github.damontecres.wholphin.ui.components.ScreensaverItem
 import com.github.damontecres.wholphin.ui.formatDate
@@ -67,14 +68,17 @@ class ScreensaverService
                 .onEach { prefs ->
                     _state.update {
                         val enabled =
-                            prefs.appPreferences.interfacePreferences.screensaverPreference.enabled
+                            BuildCapabilities.screensaverEnabled &&
+                                prefs.appPreferences.interfacePreferences.screensaverPreference.enabled
                         keepScreenOnInternal(enabled)
                         ScreensaverState(
                             enabled = enabled,
                             enabledTemp = false,
                             active = false,
                             paused = false,
-                            dimEnabled = prefs.appPreferences.interfacePreferences.screensaverPreference.dimEnabled,
+                            dimEnabled =
+                                BuildCapabilities.screensaverEnabled &&
+                                    prefs.appPreferences.interfacePreferences.screensaverPreference.dimEnabled,
                             dimActive = false,
                         )
                     }
@@ -86,6 +90,11 @@ class ScreensaverService
          */
         fun pulse() {
             waitJob?.cancel()
+            dimJob?.cancel()
+            if (!BuildCapabilities.screensaverEnabled) {
+                stop(true)
+                return
+            }
             if (_state.value.enabled) {
 //                Timber.v("pulse")
                 _state.update {
@@ -116,7 +125,6 @@ class ScreensaverService
                         }
                 }
             }
-            dimJob?.cancel()
             if (_state.value.dimEnabled) {
                 _state.update {
                     it.copy(dimActive = false)
@@ -142,6 +150,7 @@ class ScreensaverService
          * Immediately start the in-app screensaver
          */
         fun start() {
+            if (!BuildCapabilities.screensaverEnabled) return
             _state.update {
                 it.copy(
                     enabledTemp = true,
@@ -202,6 +211,10 @@ class ScreensaverService
          */
         fun createItemFlow(scope: CoroutineScope): Flow<ScreensaverItem?> =
             flow {
+                if (!BuildCapabilities.screensaverEnabled) {
+                    emit(ScreensaverItem.Empty)
+                    return@flow
+                }
                 val pager =
                     try {
                         createPager()
