@@ -1,11 +1,11 @@
 ---
 id: wphn-014
 title: Add the private Rais Stream product flavour and config boundary
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-29'
-updated_date: '2026-09-01 13:20'
+updated_date: '2026-09-01 13:28'
 labels:
   - android
   - private-flavour
@@ -120,6 +120,8 @@ Verification:
 - Independent orchestrate reviewer: ship after two corrections (API 26+ resource overrides and configured-feed release notes).
 
 Deviations: Added app/src/raisDebug/res/values/strings.xml because the existing debug source set otherwise overrides Rais Stream with Wholphin (Debug). No automated tests were added; the task specifies builds/config failure and APK coexistence, which were directly exercised.
+
+Human acceptance: accepted by the user on 2026-09-01 with instruction to push.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
