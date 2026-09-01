@@ -1,0 +1,4 @@
+rais.applicationId=
+rais.jellyfinUrl=https://jellyfin.example.com
+rais.seerrUrl=https://seerr.example.com
+rais.updateUrl=https://updates.example.com/rais-stream.json

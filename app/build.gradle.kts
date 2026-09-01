@@ -5,6 +5,7 @@ import com.google.protobuf.gradle.id
 import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.DuplicateRule
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.URI
 import java.util.Base64
 import java.util.Properties
 
@@ -35,6 +36,66 @@ val mpvModuleExists =
     providers.provider { project.file("libs/wholphin-mpv-release.aar").exists() }
 val extensionsRepoActive =
     providers.provider { project.hasProperty("WholphinExtensionsUsername") }
+
+val standardApplicationId = "com.github.damontecres.wholphin"
+val defaultUpdateUrl = "https://api.github.com/repos/damontecres/Wholphin/releases/latest"
+val familyPropertiesFile = rootProject.file("family.properties")
+val isRaisBuild =
+    gradle.startParameter.taskNames.any { taskName ->
+        val simpleName = taskName.substringAfterLast(':')
+        simpleName.contains("rais", ignoreCase = true) ||
+            simpleName.equals("assemble", ignoreCase = true) ||
+            simpleName.equals("build", ignoreCase = true) ||
+            simpleName.equals("bundle", ignoreCase = true)
+    }
+val familyProperties =
+    Properties().apply {
+        if (isRaisBuild && familyPropertiesFile.isFile) {
+            familyPropertiesFile.inputStream().use(::load)
+        }
+    }
+val familyApplicationId = familyProperties.getProperty("rais.applicationId")?.trim().orEmpty()
+val familyJellyfinUrl = familyProperties.getProperty("rais.jellyfinUrl")?.trim().orEmpty()
+val familySeerrUrl = familyProperties.getProperty("rais.seerrUrl")?.trim().orEmpty()
+val familyUpdateUrl = familyProperties.getProperty("rais.updateUrl")?.trim().orEmpty()
+
+fun String.asBuildConfigString() = "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+fun String.isValidHttpsUrl(): Boolean =
+    runCatching { URI(this) }.getOrNull()?.let {
+        it.scheme.equals("https", ignoreCase = true) && it.host != null && it.userInfo == null
+    } == true
+
+val invalidFamilyValues =
+    buildList {
+        if (
+            !familyApplicationId.matches(Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+")) ||
+            familyApplicationId == standardApplicationId
+        ) {
+            add("rais.applicationId")
+        }
+        if (!familyJellyfinUrl.isValidHttpsUrl()) add("rais.jellyfinUrl")
+        if (!familySeerrUrl.isValidHttpsUrl()) add("rais.seerrUrl")
+        if (!familyUpdateUrl.isValidHttpsUrl()) add("rais.updateUrl")
+    }
+val validateRaisConfiguration =
+    tasks.register("validateRaisConfiguration") {
+        doLast {
+            if (invalidFamilyValues.isNotEmpty()) {
+                throw GradleException(
+                    "Invalid Rais configuration (${invalidFamilyValues.joinToString()}). " +
+                        "Copy family.properties.example to family.properties and set a distinct application ID " +
+                        "and HTTPS URLs without credentials.",
+                )
+            }
+        }
+    }
+
+tasks.configureEach {
+    if (name != validateRaisConfiguration.name && name.contains("Rais")) {
+        dependsOn(validateRaisConfiguration)
+    }
+}
 
 // See https://issuetracker.google.com/issues/402800800
 val isBuildingBundle =
@@ -70,7 +131,7 @@ configure<ApplicationExtension> {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.github.damontecres.wholphin"
+        applicationId = standardApplicationId
         minSdk = 23
         targetSdk = 36
         versionCode = gitTags.trim().lines().size
@@ -78,6 +139,14 @@ configure<ApplicationExtension> {
         testInstrumentationRunner = "com.github.damontecres.wholphin.test.WholphinTestRunner"
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
+        buildConfigField("String", "PRECONFIGURED_JELLYFIN_URL", "".asBuildConfigString())
+        buildConfigField("String", "PRECONFIGURED_SEERR_URL", "".asBuildConfigString())
+        buildConfigField("String", "UPDATE_URL", defaultUpdateUrl.asBuildConfigString())
+        buildConfigField("boolean", "IS_FAMILY_BUILD", "false")
+        buildConfigField("boolean", "THEME_MUSIC_ENABLED", "true")
+        buildConfigField("boolean", "SCREENSAVER_ENABLED", "true")
+        buildConfigField("boolean", "MEDIA_MANAGEMENT_ENABLED", "true")
+        buildConfigField("boolean", "SERVER_MANAGEMENT_ENABLED", "true")
     }
 
     signingConfigs {
@@ -159,6 +228,21 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, false)
+        }
+        create("rais") {
+            dimension = "version"
+            applicationId = familyApplicationId.ifBlank { "invalid.rais.configuration" }
+            manifestPlaceholders += mapOf(featureLeanback to true)
+            setFeatureFlag(featureUpdate, true)
+            setFeatureFlag(featureDiscover, true)
+            buildConfigField("String", "PRECONFIGURED_JELLYFIN_URL", familyJellyfinUrl.asBuildConfigString())
+            buildConfigField("String", "PRECONFIGURED_SEERR_URL", familySeerrUrl.asBuildConfigString())
+            buildConfigField("String", "UPDATE_URL", familyUpdateUrl.asBuildConfigString())
+            buildConfigField("boolean", "IS_FAMILY_BUILD", "true")
+            buildConfigField("boolean", "THEME_MUSIC_ENABLED", "false")
+            buildConfigField("boolean", "SCREENSAVER_ENABLED", "false")
+            buildConfigField("boolean", "MEDIA_MANAGEMENT_ENABLED", "false")
+            buildConfigField("boolean", "SERVER_MANAGEMENT_ENABLED", "false")
         }
     }
     compileOptions {

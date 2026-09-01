@@ -15,3 +15,18 @@ the selected task boundary.
 Visual branding is deliberately deferred until the functional implementation
 is complete. Do not commit secrets, credentials, server addresses, user IDs, or
 other private deployment values.
+
+## Private Rais build
+
+Copy `family.properties.example` to the repository root as `family.properties`
+and set a distinct Android application ID plus the three required HTTPS URLs.
+The file is ignored by Git and must contain deployment endpoints only, never
+credentials, tokens, signing keys, or passwords.
+
+Build the private debug variant on Windows with:
+
+```powershell
+.\gradlew.bat :app:assembleRaisDebug
+```
+
+Standard `default`, `appstore`, and `firetv` variants do not require this file.
