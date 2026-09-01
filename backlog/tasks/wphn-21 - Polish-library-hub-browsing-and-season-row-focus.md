@@ -1,11 +1,11 @@
 ---
 id: WPHN-21
 title: Polish library hub browsing and season-row focus
-status: Human Review
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-31 14:43'
-updated_date: '2026-09-01 09:59'
+updated_date: '2026-09-01 12:46'
 labels:
   - android
   - library-hub
@@ -98,6 +98,15 @@ Corrective implementation: genre mode now passes `DefaultForGenresFilterOptions`
 
 Final verification: `./gradlew.bat :app:testDefaultDebugUnitTest --tests com.github.damontecres.wholphin.ui.library.LibraryHubTest --tests com.github.damontecres.wholphin.ui.components.CollectionFolderViewModelTest :app:assembleDefaultDebug --max-workers=1` -> BUILD SUCCESSFUL in 1m 7s. `git diff --check` -> exit 0 with line-ending warnings only. Installed the generated `armeabi-v7a` default-debug APK on `emulator-5554` (device supports x86/armeabi-v7a; installed package primary ABI is armeabi-v7a). Sequential Action and Adventure checks showed matching spotlight/artwork; rapid Home-All-Action-Adventure ended on Adventure Movies with matching The 5th Wave metadata/art; rapid All-Action-All before load completion recovered the All grid with matching Wuthering Heights metadata/art. User explicitly confirmed the genre presentation works. Final fresh reviewer verdict: ship, no findings.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-09-01 12:46
+---
+User accepted the completed implementation and explicitly requested publication on 2026-09-01.
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 
