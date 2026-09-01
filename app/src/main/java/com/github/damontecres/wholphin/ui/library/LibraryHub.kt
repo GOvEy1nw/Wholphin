@@ -21,6 +21,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
+import com.github.damontecres.wholphin.data.filter.DefaultForGenresFilterOptions
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
@@ -70,13 +72,16 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -111,6 +116,8 @@ class LibraryHubViewModel
 
         private val _state = MutableStateFlow(LibraryHubState())
         val state: StateFlow<LibraryHubState> = _state
+        private val backdropMutex = Mutex()
+        private var backdropJob: Job? = null
 
         init {
             refresh()
@@ -246,14 +253,17 @@ class LibraryHubViewModel
 
         fun activateGenre(genre: LibraryHubGenre) {
             _state.update { it.withActiveGenre(genre) }
+            updateBackdrop(null)
         }
 
         fun activateAll() {
             _state.update { it.withActiveAll() }
+            updateBackdrop(null)
         }
 
         fun restoreHome() {
             _state.update { it.withHome() }
+            updateBackdrop(null)
         }
 
         fun updatePosition(position: RowColumn) {
@@ -264,8 +274,28 @@ class LibraryHubViewModel
             _state.update { if (it.focusedItem == item) it else it.copy(focusedItem = item) }
         }
 
-        fun updateBackdrop(item: BaseItem) {
-            viewModelScope.launchIO { backdropService.submit(item) }
+        fun updateBrowseFocusedItem(
+            activation: Long,
+            genreId: UUID?,
+            item: BaseItem?,
+        ) {
+            val current = state.value
+            val isCurrentView =
+                current.browseActivation == activation &&
+                    (genreId?.let { current.activeGenre?.id == it } ?: current.activeAll)
+            if (!isCurrentView || item == null) return
+            updateFocusedItem(item)
+            updateBackdrop(item)
+        }
+
+        fun updateBackdrop(item: BaseItem?) {
+            backdropJob?.cancel()
+            backdropJob =
+                viewModelScope.launchIO {
+                    backdropMutex.withLock {
+                        if (item == null) backdropService.clearBackdrop() else backdropService.submit(item)
+                    }
+                }
         }
 
         override fun setWatched(
@@ -318,6 +348,7 @@ data class LibraryHubState(
     val genres: List<LibraryHubGenre> = emptyList(),
     val activeAll: Boolean = false,
     val activeGenre: LibraryHubGenre? = null,
+    val browseActivation: Long = 0,
     val position: RowColumn = RowColumn(-1, -1),
     val loadingState: LoadingState = LoadingState.Pending,
     val refreshState: LoadingState = LoadingState.Pending,
@@ -332,13 +363,13 @@ data class LibraryHubGenre(
 )
 
 internal fun LibraryHubState.withActiveAll(): LibraryHubState =
-    copy(activeAll = true, activeGenre = null, focusedItem = null)
+    copy(activeAll = true, activeGenre = null, browseActivation = browseActivation + 1, focusedItem = null)
 
 internal fun LibraryHubState.withActiveGenre(genre: LibraryHubGenre): LibraryHubState =
-    copy(activeAll = false, activeGenre = genre, focusedItem = null)
+    copy(activeAll = false, activeGenre = genre, browseActivation = browseActivation + 1, focusedItem = null)
 
 internal fun LibraryHubState.withHome(): LibraryHubState =
-    copy(activeAll = false, activeGenre = null, focusedItem = null)
+    copy(activeAll = false, activeGenre = null, browseActivation = browseActivation + 1, focusedItem = null)
 
 internal fun LibraryHubState.selectorIndex(): Int =
     activeGenre
@@ -423,6 +454,7 @@ fun LibraryHub(
                 if (state.isBrowsing) {
                     state.library?.let { library ->
                         val genre = state.activeGenre
+                        val browseActivation = state.browseActivation
                         val initialFilter =
                             genre?.let {
                                 createGenreDestination(
@@ -456,16 +488,20 @@ fun LibraryHub(
                                             MovieSortOptions
                                         },
                                     playEnabled = library.collectionType == CollectionType.MOVIES,
+                                    filterOptions =
+                                        if (genre != null) DefaultForGenresFilterOptions else DefaultFilterOptions,
                                     defaultViewOptions = ViewOptionsPoster.copy(showTitles = false),
                                     viewModelKey =
                                         genre?.let { "${library.itemId}_genres_${it.id}" }
                                             ?: "${library.itemId}_all",
-                                    showTitle = false,
+                                    showTitle = genre != null,
                                     focusRequesterOnEmpty = selectedTab.tabFocusRequester,
                                     gridFocusRequester = browseGridFocusRequester,
                                     focusRequesterOnFirstRowUp = selectedTab.tabFocusRequester,
-                                    cancelLoadsOnDispose = true,
-                                    onFocusedItem = viewModel::updateFocusedItem,
+                                    manageBackdrop = false,
+                                    onFocusedItem = {
+                                        viewModel.updateBrowseFocusedItem(browseActivation, genre?.id, it)
+                                    },
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }

@@ -649,6 +649,7 @@ fun CollectionFolderView(
     onFocusedItem: (BaseItem?) -> Unit = {},
     focusRequesterOnFirstRowUp: FocusRequester? = null,
     cancelLoadsOnDispose: Boolean = false,
+    manageBackdrop: Boolean = true,
 ) = CollectionFolderView(
     preferences,
     itemId.toServerString(),
@@ -670,6 +671,7 @@ fun CollectionFolderView(
     onFocusedItem = onFocusedItem,
     focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
     cancelLoadsOnDispose = cancelLoadsOnDispose,
+    manageBackdrop = manageBackdrop,
 )
 
 @Composable
@@ -694,6 +696,7 @@ fun CollectionFolderView(
     onFocusedItem: (BaseItem?) -> Unit = {},
     focusRequesterOnFirstRowUp: FocusRequester? = null,
     cancelLoadsOnDispose: Boolean = false,
+    manageBackdrop: Boolean = true,
 ) = CollectionFolderView(
     preferences,
     itemId.toServerString(),
@@ -715,6 +718,7 @@ fun CollectionFolderView(
     onFocusedItem = onFocusedItem,
     focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
     cancelLoadsOnDispose = cancelLoadsOnDispose,
+    manageBackdrop = manageBackdrop,
 )
 
 @Composable
@@ -739,6 +743,7 @@ fun CollectionFolderView(
     onFocusedItem: (BaseItem?) -> Unit = {},
     focusRequesterOnFirstRowUp: FocusRequester? = null,
     cancelLoadsOnDispose: Boolean = false,
+    manageBackdrop: Boolean = true,
     viewModel: CollectionFolderViewModel =
         hiltViewModel<CollectionFolderViewModel, CollectionFolderViewModel.Factory>(
             key = viewModelKey,
@@ -786,6 +791,7 @@ fun CollectionFolderView(
         gridFocusRequester = gridFocusRequester,
         onFocusedItem = onFocusedItem,
         focusRequesterOnFirstRowUp = focusRequesterOnFirstRowUp,
+        manageBackdrop = manageBackdrop,
     )
 }
 
@@ -834,6 +840,7 @@ fun CollectionFolderViewContent(
     gridFocusRequester: FocusRequester? = null,
     onFocusedItem: (BaseItem?) -> Unit = {},
     focusRequesterOnFirstRowUp: FocusRequester? = null,
+    manageBackdrop: Boolean = true,
 ) {
     val takeContentFocus = LocalContentTakeFocus.current
     var position by rememberInt(savedPosition)
@@ -930,7 +937,7 @@ fun CollectionFolderViewContent(
                     val pager = remember(state.items) { state.items.successValue }
 
                     val focusedItem = pager?.getOrNull(position)
-                    if (state.viewOptions.showBackdrop) {
+                    if (manageBackdrop && state.viewOptions.showBackdrop) {
                         LaunchedEffect(focusedItem) {
                             focusedItem?.let(viewActions::updateBackdrop)
                         }
